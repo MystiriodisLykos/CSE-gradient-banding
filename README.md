@@ -1,55 +1,65 @@
-# Image Rotation using NVIDIA NPP with CUDA
+# Image Color Banding using NVIDIA NPP with CUDA
 
 ## Overview
 
-This project demonstrates the use of NVIDIA Performance Primitives (NPP) library with CUDA to perform image rotation. The goal is to utilize GPU acceleration to efficiently rotate a given image by a specified angle, leveraging the computational power of modern GPUs. The project is a part of the CUDA at Scale for the Enterprise course and serves as a template for understanding how to implement basic image processing operations using CUDA and NPP.
+This project demonstrates the use of NVIDIA Performance Primitives (NPP) library with CUDA to perform image colorspace downsampling.
+The goal is to utilize GPU acceleration to produce images that have strong color banding in gradients of an image.
+
+For example, the goal is to make gradients like this image from Touch Detectiv (DS, 2006).
+![](assets/example_color_banding.png)
+Notice how the image is a gradient from light to dark blue, but the gradient isn't smooth.
+The gradient is limited to a dozen or so shades of blue so there is a distinct line where the shades change.
+Further, the changes are not straight or curved lines but are wiggly with possibly some underlying structure or commonalities between the lines.
+
+Personally, I like this astetic and want to have a semi-structured way to produce this kind of effect.
+
+To do that I'll use NPP to apply some random set of effects to a smooth gradient, recording which effects are applied.
+Then the image will have its colorspace reduced, again in a somewhat random and recorded way.
+Finally, I'll use edge detection to determine how "wiggly" and noticable, the color banding is.
+These steps will be applied multiple times to the same initial gradient, other gradients, and gradients with a texture overlay.
+I'll then keep only those images that meet some edge detection threashold and manually inspect them to see which combination of effects I like the most.
+
+Hopefully I'll be able to use these results to create this kind of effect manually in drawing programs like gimp or photoshop in the future.
+Or possibly even create a plugin for those programs.
+
+The project is a part of the CUDA at Scale for the Enterprise course.
 
 ## Code Organization
 
 ```bin/```
-This folder should hold all binary/executable code that is built automatically or manually. Executable code should have use the .exe extension or programming language-specific extension.
+This folder holds all binary/executable code.
 
 ```data/```
-This folder should hold all example data in any format. If the original data is rather large or can be brought in via scripts, this can be left blank in the respository, so that it doesn't require major downloads when all that is desired is the code/structure.
+This folder holds all example data.
+TODO: the images are all pulled from transparent-backgrounds (link).
 
 ```lib/```
 Any libraries that are not installed via the Operating System-specific package manager should be placed here, so that it is easier for inclusion/linking.
 
 ```src/```
-The source code should be placed here in a hierarchical fashion, as appropriate.
+The source code.
 
 ```README.md```
-This file should hold the description of the project so that anyone cloning or deciding if they want to clone this repository can understand its purpose to help with their decision.
+You are here.
 
 ```INSTALL```
-This file should hold the human-readable set of instructions for installing the code so that it can be executed. If possible it should be organized around different operating systems, so that it can be done by as many people as possible with different constraints.
+human-readable set of instructions for installing.
 
-```Makefile or CMAkeLists.txt or build.sh```
-There should be some rudimentary scripts for building your project's code in an automatic fashion.
-
-```run.sh```
-An optional script used to run your executable code, either with or without command-line arguments.
-
-## Key Concepts
-
-Performance Strategies, Image Processing, NPP Library
-
-## Supported SM Architectures
-
-[SM 3.5 ](https://developer.nvidia.com/cuda-gpus)  [SM 3.7 ](https://developer.nvidia.com/cuda-gpus)  [SM 5.0 ](https://developer.nvidia.com/cuda-gpus)  [SM 5.2 ](https://developer.nvidia.com/cuda-gpus)  [SM 6.0 ](https://developer.nvidia.com/cuda-gpus)  [SM 6.1 ](https://developer.nvidia.com/cuda-gpus)  [SM 7.0 ](https://developer.nvidia.com/cuda-gpus)  [SM 7.2 ](https://developer.nvidia.com/cuda-gpus)  [SM 7.5 ](https://developer.nvidia.com/cuda-gpus)  [SM 8.0 ](https://developer.nvidia.com/cuda-gpus)  [SM 8.6 ](https://developer.nvidia.com/cuda-gpus)
+```Makefile```
+Build the project.
 
 ## Supported OSes
 
-Linux, Windows
+Linux
 
 ## Supported CPU Architecture
 
-x86_64, ppc64le, armv7l
+x86_64
 
 ## CUDA APIs involved
 
 ## Dependencies needed to build/run
-[FreeImage](../../README.md#freeimage), [NPP](../../README.md#npp)
+[NPP](../../README.md#npp) TODO: actual link
 
 ## Prerequisites
 
@@ -58,23 +68,12 @@ Make sure the dependencies mentioned in [Dependencies]() section above are insta
 
 ## Build and Run
 
-### Windows
-The Windows samples are built using the Visual Studio IDE. Solution files (.sln) are provided for each supported version of Visual Studio, using the format:
-```
-*_vs<version>.sln - for Visual Studio <version>
-```
-Each individual sample has its own set of solution files in its directory:
-
-To build/examine all the samples at once, the complete solution files should be used. To build/examine a single sample, the individual sample solution files should be used.
-> **Note:** Some samples require that the Microsoft DirectX SDK (June 2010 or newer) be installed and that the VC++ directory paths are properly set up (**Tools > Options...**). Check DirectX Dependencies section for details."
-
 ### Linux
-The Linux samples are built using makefiles. To use the makefiles, change the current directory to the sample directory you wish to build, and run make:
 ```
-$ cd <sample_dir>
 $ make
 ```
-The samples makefiles can take advantage of certain options:
+
+Options:
 *  **TARGET_ARCH=<arch>** - cross-compile targeting a specific architecture. Allowed architectures are x86_64, ppc64le, armv7l.
     By default, TARGET_ARCH is set to HOST_ARCH. On a x86_64 machine, not setting TARGET_ARCH is the equivalent of setting TARGET_ARCH=x86_64.<br/>
 `$ make TARGET_ARCH=x86_64` <br/> `$ make TARGET_ARCH=ppc64le` <br/> `$ make TARGET_ARCH=armv7l` <br/>
@@ -98,17 +97,15 @@ The samples makefiles can take advantage of certain options:
 After building the project, you can run the program using the following command:
 
 ```bash
-Copy code
 make run
 ```
 
-This command will execute the compiled binary, rotating the input image (Lena.png) by 45 degrees, and save the result as Lena_rotated.png in the data/ directory.
-
 If you wish to run the binary directly with custom input/output files, you can use:
 
+TODO: update references
 ```bash
 - Copy code
-./bin/imageRotationNPP --input data/Lena.png --output data/Lena_rotated.png
+./bin/imageRotationNPP
 ```
 
 - Cleaning Up
