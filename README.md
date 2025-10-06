@@ -6,7 +6,11 @@ This project demonstrates the use of NVIDIA Performance Primitives (NPP) library
 The goal is to utilize GPU acceleration to produce images that have strong color banding in gradients of an image.
 
 For example, the goal is to make gradients like this image from Touch Detectiv (DS, 2006).
+
+
 ![](assets/example_color_banding.png)
+
+
 Notice how the image is a gradient from light to dark blue, but the gradient isn't smooth.
 The gradient is limited to a dozen or so shades of blue so there is a distinct line where the shades change.
 Further, the changes are not straight or curved lines but are wiggly with possibly some underlying structure or commonalities between the lines.
