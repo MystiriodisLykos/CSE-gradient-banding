@@ -33,7 +33,7 @@
 #endif
 
 #include <Exceptions.h>
-#include <ImageIO.h>
+#include <util.h>
 #include <ImagesCPU.h>
 #include <ImagesNPP.h>
 
@@ -147,37 +147,66 @@ int main(int argc, char *argv[])
         }
 
         // declare a host image object for an 8-bit grayscale image
-        npp::ImageCPU_8u_C1 oHostSrc;
+        npp::ImageCPU_8u_C4 oHostSrc;
         // load gray-scale image from disk
         npp::loadImage(sFilename, oHostSrc);
         // declare a device image and copy construct from the host image,
         // i.e. upload host to device
-        npp::ImageNPP_8u_C1 oDeviceSrc(oHostSrc);
+        npp::ImageNPP_8u_C4 oDeviceSrc(oHostSrc);
 
         // create struct with the ROI size
         NppiSize oSrcSize = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
         NppiPoint oSrcOffset = {0, 0};
         NppiSize oSizeROI = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
 
+        NppiRect oSrcROI = {0,
+                            0,
+                            oSrcSize.width,
+                            oSrcSize.height};
+
+        std::cout << "ROI box" << std::endl;
+        std::cout << oSrcROI.x << std::endl;
+        std::cout << oSrcROI.y << std::endl;
+        std::cout << oSrcROI.width << std::endl;
+        std::cout << oSrcROI.height << std::endl;
+
         // Calculate the bounding box of the rotated image
-        NppiRect oBoundingBox;
-        double angle = 45.0; // Rotation angle in degrees
-        NPP_CHECK_NPP(nppiGetRotateBound(oSrcSize, angle, &oBoundingBox));
+        double aBoundingBox[2][2] = { 0 };
+        double angle = 5.0; // Rotation angle in degrees
+        NPP_CHECK_NPP(nppiGetRotateBound(oSrcROI, aBoundingBox, angle, 0, 0));
+
+        NppiRect oBoundingBox = {0,
+                                 0,
+                                 (int)(aBoundingBox[1][0] - aBoundingBox[0][0]),
+                                 (int)(aBoundingBox[1][1] - aBoundingBox[0][1])};
+
+        std::cout << "bounding box" << std::endl;
+        std::cout << (aBoundingBox[0][0]) << std::endl;
+        std::cout << (aBoundingBox[0][1]) << std::endl;
+        std::cout << (aBoundingBox[1][0]) << std::endl;
+        std::cout << (aBoundingBox[1][1]) << std::endl;
+
+        std::cout << "res ROI" << std::endl;
+        std::cout << (oBoundingBox.x) << std::endl;
+        std::cout << (oBoundingBox.y) << std::endl;
+        std::cout << (oBoundingBox.width) << std::endl;
+        std::cout << (oBoundingBox.height) << std::endl;
 
         // allocate device image for the rotated image
-        npp::ImageNPP_8u_C1 oDeviceDst(oBoundingBox.width, oBoundingBox.height);
+        npp::ImageNPP_8u_C4 oDeviceDst(oBoundingBox.width, oBoundingBox.height);
 
         // Set the rotation point (center of the image)
         NppiPoint oRotationCenter = {(int)(oSrcSize.width / 2), (int)(oSrcSize.height / 2)};
 
         // run the rotation
-        NPP_CHECK_NPP(nppiRotate_8u_C1R(
-            oDeviceSrc.data(), oSrcSize, oDeviceSrc.pitch(), oSrcOffset,
-            oDeviceDst.data(), oDeviceDst.pitch(), oBoundingBox, angle, oRotationCenter,
+        NPP_CHECK_NPP(nppiRotate_8u_C4R(
+            oDeviceSrc.data(), oSrcSize, oDeviceSrc.pitch(), oSrcROI,
+            oDeviceDst.data(), oDeviceDst.pitch(), oBoundingBox,
+            angle, -aBoundingBox[0][0], -aBoundingBox[0][1],
             NPPI_INTER_NN));
 
         // declare a host image for the result
-        npp::ImageCPU_8u_C1 oHostDst(oDeviceDst.size());
+        npp::ImageCPU_8u_C4 oHostDst(oDeviceDst.size());
         // and copy the device result data into it
         oDeviceDst.copyTo(oHostDst.data(), oHostDst.pitch());
 
