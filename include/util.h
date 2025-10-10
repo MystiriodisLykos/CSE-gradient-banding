@@ -95,6 +95,15 @@ namespace npp
         bSuccess = FreeImage_Save(FIF_PNG, pResultBitmap, rFileName.c_str(), 0) == TRUE;
         NPP_ASSERT_MSG(bSuccess, "Failed to save result image.");
     }
+
+    void
+    saveImage(const std::string &rFileName, const ImageNPP_8u_C4 &rImage)
+    {
+        ImageCPU_8u_C4 oHostImage(rImage.size());
+        // copy the device result data
+        rImage.copyTo(oHostImage.data(), oHostImage.pitch());
+        saveImage(rFileName, oHostImage);
+    }
 } // namespace npp
 
 #endif // NV_UTIL_NPP_IMAGE_IO_H

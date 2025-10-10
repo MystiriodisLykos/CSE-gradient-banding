@@ -44,11 +44,11 @@ DATA_DIR = data
 LIB_DIR = lib
 
 # Define source files and target executable
-SRC = $(SRC_DIR)/imageRotationNPP.cpp
-TARGET = $(BIN_DIR)/imageRotationNPP
+# SRC = $(SRC_DIR)/imageRotationNPP.cpp
+# TARGET = $(BIN_DIR)/imageRotationNPP
 
-# SRC = $(SRC_DIR)/boxFilterNPP.cpp
-# TARGET = $(BIN_DIR)/boxFilterNPP
+SRC = $(SRC_DIR)/gradient-banding.cpp
+TARGET = $(BIN_DIR)/gradient-banding
 
 # Define the default rule
 all: $(TARGET)
@@ -60,7 +60,7 @@ $(TARGET): $(SRC)
 
 # Rule for running the application
 run: $(TARGET)
-	./$(TARGET) --input $(DATA_DIR)/Lena.png --output $(DATA_DIR)/Lena_rotated.png
+	./$(TARGET) --input $(DATA_DIR)/red-argyle-fit2.png
 
 # Clean up
 clean:
