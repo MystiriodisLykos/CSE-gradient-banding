@@ -369,12 +369,14 @@ int main(int argc, char *argv[])
     Npp8u zeros[8] = {0,0,0,0,0,0,0,0};
     Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
 
-    const Npp8u *pallet[3] = {linear10, linear10, halfs};
+    const Npp8u *pallet3[3] = {linear10, linear10, halfs};
+    const Npp8u *pallet2[3] = {linear5, linear5, halfs};
 
-    downSampleA3(oDeviceGradient, pallet, oDeviceDst);
+    downSampleA3(oDeviceGradient, pallet3, oDeviceDst);
+    // downSampleA2(oDeviceGradient, pallet2, oDeviceDst);
 
     std::string sResultFilename = "data/testG.png";
-    npp::saveImage(sResultFilename, oDeviceGradient);
+    npp::saveImage(sResultFilename, oDeviceDst);
     std::cout << "Saved image: " << sResultFilename << std::endl;
 
     nppiFree(oDeviceDst.data());
