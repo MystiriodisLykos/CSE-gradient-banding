@@ -6,6 +6,7 @@
 #include <string.h>
 #include <fstream>
 #include <iostream>
+#include <cmath>
 
 #include <cuda_runtime.h>
 #include <npp.h>
@@ -249,25 +250,36 @@ void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
         NPPI_INTER_LINEAR));
 }
 
-const Npp8u* copyPallet(const Npp8u *pallet) {
-    size_t size = 8 * sizeof(Npp8u);
+const Npp8u *copyPallet(const Npp8u *pallet, int numElements)
+{
+    // Copy channel pallet array to device.
+    size_t size = numElements * sizeof(Npp8u);
     Npp8u *d_pallet = NULL;
     NPP_CHECK_CUDA(cudaMalloc(&d_pallet, size));
     NPP_CHECK_CUDA(cudaMemcpy(d_pallet, pallet, size, cudaMemcpyHostToDevice));
     return d_pallet;
 }
 
-void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
+void downSampleA(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], Npp8u bitDepth, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
+    // Downsample `oDeviceSrc` using `pTables` in rgb channels to `bitDepth`, alpha is not downsampled.
     // pTables is a list of 3 host pointers for three channel pallets.
     // Channel order is blue, green, red.
+    // Each channel must have `2^bitDepth` elements. TODO: add assert
+    // BitDepth must be between (0,8] TODO: add assert
+
+    int palletElements = pow(2, bitDepth);
 
     // copy pallet to device.
-    const Npp8u *pallet[3] = {copyPallet(pTables[0]), copyPallet(pTables[1]), copyPallet(pTables[2])};
+    const Npp8u *
+        pallet[3] = {
+            copyPallet(pTables[0], palletElements),
+            copyPallet(pTables[1], palletElements),
+            copyPallet(pTables[2], palletElements)};
 
+    Npp8u shift = 8 - bitDepth;
     // Downsample to the 3 most significant bits.
-    const Npp32u aConstants[4] = {5, 5, 0, 0};
+    const Npp32u aConstants[4] = {shift, shift, shift, 0};
     NPP_CHECK_NPP(nppiRShiftC_8u_C4R(
         oDeviceSrc.data(), oDeviceSrc.pitch(), aConstants,
         oDeviceDst.data(), oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
@@ -277,7 +289,31 @@ void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp:
         oDeviceDst.data(), oDeviceDst.pitch(),
         oDeviceDst.data(), oDeviceDst.pitch(),
         imageSizeROI(oDeviceSrc),
-        pallet, 3));
+        pallet, bitDepth));
+}
+
+void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
+    // pTables is a list of 3 host pointers for three channel pallets.
+    // Channel order is blue, green, red.
+    // Each channel must have 8 elements.
+
+    downSampleA(oDeviceSrc, pTables, 3, oDeviceDst);
+}
+
+void downSampleA2(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
+    // pTables is a list of 3 host pointers for three channel pallets.
+    // Channel order is blue, green, red.
+    // Each channel must have 4 elements.
+
+    downSampleA(oDeviceSrc, pTables, 2, oDeviceDst);
+}
+
+int countourCount() {
+    // NppiContourTotalsInfo
 }
 
 int main(int argc, char *argv[])
@@ -287,17 +323,17 @@ int main(int argc, char *argv[])
     npp::ImageNPP_8u_C4 oDeviceLena;
     loadImage("data/Lena.png", oDeviceLena);
 
-    npp::ImageNPP_8u_C4 oDeviceGradient(2000,2000);
+    npp::ImageNPP_8u_C4 oDeviceGradient(1000,1000);
     makeGradient(oDeviceGradient);
 
     npp::ImageNPP_8u_C4 oDeviceTextureSrc;
-    // loadImage("data/textures/argyle.png", oDeviceTextureSrc);
-    loadImage("data/textures/crisp-paper-ruffles.png", oDeviceTextureSrc);
+    loadImage("data/textures/argyle.png", oDeviceTextureSrc);
+    // loadImage("data/textures/crisp-paper-ruffles.png", oDeviceTextureSrc);
 
     // npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceDst);
 
-    rotateTexture(oDeviceTextureSrc, 40, oDeviceTextureSrc);
+    rotateTexture(oDeviceTextureSrc, 45, oDeviceTextureSrc);
 
     // npp::ImageNPP_8u_C4 oDeviceDst(oDeviceLena.width(), oDeviceLena.height());
     npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
@@ -316,7 +352,7 @@ int main(int argc, char *argv[])
     // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
     // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
 
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
+    addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
@@ -326,6 +362,11 @@ int main(int argc, char *argv[])
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
     Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
+
+    // approximate linear gradient between 0 and 255 split into 5 parts.
+    // 0, 127, 255 excluded.
+    Npp8u linear5[4] = {24, 102, 153, 230};
+
     Npp8u constant[8] = {255,255,255,255,255,255,255,255};
     Npp8u zeros[8] = {0,0,0,0,0,0,0,0};
     Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
@@ -335,7 +376,7 @@ int main(int argc, char *argv[])
     downSampleA3(oDeviceGradient, pallet, oDeviceDst);
 
     std::string sResultFilename = "data/testG.png";
-    npp::saveImage(sResultFilename, oDeviceDst);
+    npp::saveImage(sResultFilename, oDeviceGradient);
     std::cout << "Saved image: " << sResultFilename << std::endl;
 
     nppiFree(oDeviceDst.data());
