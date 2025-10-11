@@ -326,14 +326,12 @@ int main(int argc, char *argv[])
     npp::ImageNPP_8u_C4 oDeviceGradient(1000,1000);
     makeGradient(oDeviceGradient);
 
-    npp::ImageNPP_8u_C4 oDeviceTextureSrc;
-    loadImage("data/textures/argyle.png", oDeviceTextureSrc);
-    // loadImage("data/textures/crisp-paper-ruffles.png", oDeviceTextureSrc);
+    npp::ImageNPP_8u_C4 oArgyleTexture;
+    npp::ImageNPP_8u_C4 oRufflesTexture;
+    loadImage("data/textures/argyle.png", oArgyleTexture);
+    loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
 
-    // npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceDst);
-
-    rotateTexture(oDeviceTextureSrc, 45, oDeviceTextureSrc);
+    rotateTexture(oRufflesTexture, 45, oRufflesTexture);
 
     // npp::ImageNPP_8u_C4 oDeviceDst(oDeviceLena.width(), oDeviceLena.height());
     npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
@@ -344,20 +342,20 @@ int main(int argc, char *argv[])
 
     // rotateTexture(oDeviceLena, 45.0, oDeviceDst);
 
-    NppiRect textureROI = {100, 500, 500, 500};
-    // addTextureROI(oDeviceGradient, textureROI, oDeviceTextureSrc, oDeviceDst);
-    // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
-    // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
-    // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
-    // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
-    // addTextureROI(oDeviceDst, textureROI, oDeviceTextureSrc, oDeviceDst);
+    NppiRect textureROI = {10, 50, 200, 250};
+    addTextureROI(oDeviceGradient, textureROI, oArgyleTexture, oDeviceGradient);
+    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
+    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
+    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
+    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
+    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
 
-    addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
-    // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
+    // addTexture(oDeviceGradient, oArgyleTexture, oDeviceGradient);
+    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
+    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
+    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
+    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
+    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
 
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
