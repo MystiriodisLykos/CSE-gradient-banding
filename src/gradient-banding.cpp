@@ -249,80 +249,38 @@ void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
         NPPI_INTER_LINEAR));
 }
 
-void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
+const Npp8u* copyPallet(const Npp8u *pallet) {
+    size_t size = 8 * sizeof(Npp8u);
+    Npp8u *d_pallet = NULL;
+    NPP_CHECK_CUDA(cudaMalloc(&d_pallet, size));
+    NPP_CHECK_CUDA(cudaMemcpy(d_pallet, pallet, size, cudaMemcpyHostToDevice));
+    return d_pallet;
+}
 
+void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
 {
     // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
+    // pTables is a list of 3 host pointers for three channel pallets.
+    // Channel order is blue, green, red.
 
-    Npp8u whites[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+    // copy pallet to device.
+    const Npp8u *pallet[3] = {copyPallet(pTables[0]), copyPallet(pTables[1]), copyPallet(pTables[2])};
 
-    Npp8u *d_whites = NULL;
-    NPP_CHECK_CUDA(cudaMalloc(&d_whites, 8 * sizeof(Npp8u)));
-    NPP_CHECK_CUDA(cudaMemcpy(d_whites, whites, 8 * sizeof(Npp8u), cudaMemcpyHostToDevice));
-
-    // npp::ImageNPP_8u_C4 oDeviceInv(oDeviceSrc.width(), oDeviceSrc.height());
-
-    // NPP_CHECK_NPP(nppiNot_8u_AC4R(
-    //     oDeviceSrc.data(), oDeviceSrc.pitch(),
-    //     oDeviceInv.data(), oDeviceInv.pitch(),
-    //     imageSizeROI(oDeviceInv)));
-
-    // NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
-    //     oDeviceInv.data(), oDeviceInv.pitch(),
-    //     oDeviceInv.data(), oDeviceInv.pitch(),
-    //     imageSizeROI(oDeviceSrc),
-    //     pTables, 3));
-
-    // NPP_CHECK_NPP(nppiSet_8u_C4CR(
-    //     255, oDeviceInv.data() + 3, oDeviceInv.pitch(), imageSizeROI(oDeviceInv)));
-
-    // oDeviceDst.swap(oDeviceInv);
-    const Npp32u aConstants[4] = {5,5,0,0};
+    // Downsample to the 3 most significant bits.
+    const Npp32u aConstants[4] = {5, 5, 0, 0};
     NPP_CHECK_NPP(nppiRShiftC_8u_C4R(
         oDeviceSrc.data(), oDeviceSrc.pitch(), aConstants,
         oDeviceDst.data(), oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
 
+    // Recolor to pallet.
     NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
         oDeviceDst.data(), oDeviceDst.pitch(),
         oDeviceDst.data(), oDeviceDst.pitch(),
         imageSizeROI(oDeviceSrc),
-        pTables, 3));
-
-    NPP_CHECK_NPP(nppiLShiftC_8u_C4R(
-        oDeviceDst.data(), oDeviceDst.pitch(), aConstants,
-        oDeviceDst.data(), oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
-
-    // const Npp8u *pallet[4] = {pTables[0], pTables[1], pTables[2], d_whites};
-    // // const Npp8u *pallet[4] = {d_whites, d_whites, d_whites, d_whites};
-    // npp::ImageNPP_8u_C4 oDeviceHSV(oDeviceSrc.width(), oDeviceSrc.height());
-    // npp::ImageNPP_8u_C4 oDeviceHSVR(oDeviceSrc.width(), oDeviceSrc.height());
-    // npp::ImageNPP_8u_C4 oDeviceRGB(oDeviceSrc.width(), oDeviceSrc.height());
-
-    // NPP_CHECK_NPP(nppiRGBToHSV_8u_AC4R(
-    //     oDeviceSrc.data(), oDeviceSrc.pitch(),
-    //     oDeviceHSV.data(), oDeviceHSV.pitch(),
-    //     imageSizeROI(oDeviceSrc)));
-
-    // NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
-    //     oDeviceHSV.data(), oDeviceHSV.pitch(),
-    //     oDeviceHSVR.data(), oDeviceHSVR.pitch(),
-    //     imageSizeROI(oDeviceSrc),
-    //     pTables, 3));
-
-    // NPP_CHECK_NPP(nppiHSVToRGB_8u_AC4R(
-    //     oDeviceHSVR.data(), oDeviceHSVR.pitch(),
-    //     oDeviceRGB.data(), oDeviceRGB.pitch(),
-    //     imageSizeROI(oDeviceSrc)));
-
-    // NPP_CHECK_NPP(nppiSet_8u_C4CR(
-    //     255, oDeviceRGB.data() + 3, oDeviceRGB.pitch(), imageSizeROI(oDeviceSrc)));
-
-    // oDeviceDst.swap(oDeviceRGB);
-    // std::cout << "here" << std::endl;
+        pallet, 3));
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     printf("%s Starting...\n\n", argv[0]);
 
@@ -365,33 +323,14 @@ main(int argc, char *argv[])
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
     // addTexture(oDeviceGradient, oDeviceTextureSrc, oDeviceGradient);
 
-    // 10011000
-    // 10110011
-
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
-    // TODO: needs to be a device pointer
-    // Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
-    // TODO: this needs to be in binary
-    Npp8u linear10[8] = {255, 0, 51, 179, 76, 204, 102, 0};
-    // Npp8u linear10[8] = {230, 204, 179, 153, 102, 76, 51, 24};
+    Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
     Npp8u constant[8] = {255,255,255,255,255,255,255,255};
     Npp8u zeros[8] = {0,0,0,0,0,0,0,0};
+    Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
 
-    size_t p10_size = 8 * sizeof(Npp8u);
-    Npp8u *d_linear10 = NULL;
-    NPP_CHECK_CUDA(cudaMalloc(&d_linear10, p10_size));
-    NPP_CHECK_CUDA(cudaMemcpy(d_linear10, linear10, p10_size, cudaMemcpyHostToDevice));
-
-    Npp8u *d_constant = NULL;
-    NPP_CHECK_CUDA(cudaMalloc(&d_constant, p10_size));
-    NPP_CHECK_CUDA(cudaMemcpy(d_constant, constant, p10_size, cudaMemcpyHostToDevice));
-
-    Npp8u *d_zeros = NULL;
-    NPP_CHECK_CUDA(cudaMalloc(&d_zeros, p10_size));
-    NPP_CHECK_CUDA(cudaMemcpy(d_zeros, zeros, p10_size, cudaMemcpyHostToDevice));
-
-    const Npp8u *pallet[3] = {d_linear10, d_linear10, d_constant}; // blue, green, red
+    const Npp8u *pallet[3] = {linear10, linear10, halfs};
 
     downSampleA3(oDeviceGradient, pallet, oDeviceDst);
 
