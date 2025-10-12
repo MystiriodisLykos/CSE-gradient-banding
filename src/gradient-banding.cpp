@@ -197,6 +197,80 @@ void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::Image
     oDeviceDSt.swap(oResImage);
 }
 
+void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt) {
+    // Adds `textureSrc` to only the top half of `oDeviceSrc`.
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 2;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureBH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds `textureSrc` to only the bottom half of `oDeviceSrc`.
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 2;
+    oSrcROI.y += oSrcROI.height;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureMH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds `textureSrc` to only the Middle (between top and bottom quarters) half of `oDeviceSrc`.
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 2;
+    oSrcROI.y += (oSrcROI.height/2);
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds texture on only the top quarter of the image
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 4;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureMTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds texture on only the middle top quarter of the image
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 4;
+    oSrcROI.y += oSrcROI.height;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureMBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds texture on only the middle bottom quarter of the image
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 4;
+    oSrcROI.y += oSrcROI.height*2;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
+void addTextureBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
+    // Adds texture on only the bottom quarter of the image
+
+    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    oSrcROI.height /= 4;
+    oSrcROI.y += oSrcROI.height * 3;
+
+    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
+}
+
 void rotateTexture(npp::ImageNPP_8u_C4 &textureSrc, double angle, npp::ImageNPP_8u_C4 &textureDst)
 {
     // rotate `textureSrc` by `angle` such that textureDst titles correctly.
@@ -415,11 +489,16 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, moveROI(imageROI(oArgyleTexture), textureStart), oArgyleTexture, oDeviceSrc);
 
-    // addTexture(oDeviceSrc, oArgyleTexture, oDeviceSrc);
-    addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureMTQ(oDeviceSrc, oArgyleTexture, oDeviceSrc);
+    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+
+    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
     // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
 
     // approximate linear gradient between 0 and 255 split into 10 parts.
@@ -437,8 +516,8 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     const Npp8u *pallet3[3] = {linear10, linear10, halfs};
     const Npp8u *pallet2[3] = {linear5, linear5, halfs};
 
-    // downSampleA3(oDeviceSrc, pallet3, oDeviceDst);
-    downSampleA2(oDeviceSrc, pallet2, oDeviceDst);
+    downSampleA3(oDeviceSrc, pallet3, oDeviceDst);
+    // downSampleA2(oDeviceSrc, pallet2, oDeviceDst);
 
     // default gradient at 3-bit depth: 3000
     float cc = contourCount(oDeviceDst);
