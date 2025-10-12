@@ -14,6 +14,9 @@
 #include <helper_cuda.h>
 #include <helper_string.h>
 
+npp::ImageNPP_8u_C4 oArgyleTexture;
+npp::ImageNPP_8u_C4 oRufflesTexture;
+
 void loadImage(std::string sFilename, npp::ImageNPP_8u_C4 &rImage)
 {
     int file_errors = 0;
@@ -59,6 +62,14 @@ NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
     return oROI;
 }
 
+NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc)
+{
+    NppiSize oROI = {
+        (int)oDeviceSrc.width(),
+        (int)oDeviceSrc.height()};
+    return oROI;
+}
+
 NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
     NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
     NppiRect oROI = {
@@ -67,6 +78,16 @@ NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
         oSizeROI.width,
         oSizeROI.height};
     return oROI;
+}
+
+NppiRect moveROI(NppiRect oROI, NppiPoint to) {
+    NppiRect r = {
+        oROI.x + to.x,
+        oROI.y + to.y,
+        oROI.width + to.x,
+        oROI.height + to.y
+    };
+    return r;
 }
 
 void rotateT(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, NppiPoint shift, npp::ImageNPP_8u_C4 &oDeviceDst)
@@ -117,7 +138,7 @@ void move(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint to, npp::ImageNPP_8u_C4 &oD
         oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(), imageROI(oDeviceSrc),
         oDeviceDst.data(), oDeviceDst.pitch(), imageROI(oDeviceDst),
         0, to.x, to.y,
-        NPPI_INTER_NN));
+        NPPI_INTER_LINEAR));
 }
 
 void wrapTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
@@ -312,50 +333,94 @@ void downSampleA2(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp:
     downSampleA(oDeviceSrc, pTables, 2, oDeviceDst);
 }
 
-int countourCount() {
-    // NppiContourTotalsInfo
+float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    // Computes an image contour `oDeviceSrc` and returns what percent count as a contour.
+    // Contours are calculated with nppiFilterCannyBorder_8u_C1R.
+
+    NppiSize imageSize = imageSizeROI(oDeviceSrc);
+
+    // Convert to grayscale for contour detection
+    npp::ImageNPP_8u_C1 oDeviceGray(imageSize.width, imageSize.height);
+    NPP_CHECK_NPP(nppiRGBToGray_8u_AC4C1R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(),
+        oDeviceGray.data(), oDeviceGray.pitch(),
+        imageSize));
+
+    // Make buffer for contour calculation
+    int nContourBufferSize = 0;
+    Npp8u *pContourBufferNPP = 0;
+    NPP_CHECK_NPP(nppiFilterCannyBorderGetBufferSize(imageSize, &nContourBufferSize));
+    cudaMalloc((void **)&pContourBufferNPP, nContourBufferSize);
+
+    Npp16s nLowThreshold = 200;
+    Npp16s nHighThreshold = 500;
+    npp::ImageNPP_8u_C1 oDeviceContour(imageSize.width, imageSize.height);
+    NppiPoint oOrigin = {0, 0};
+    NPP_CHECK_NPP(nppiFilterCannyBorder_8u_C1R(
+        oDeviceGray.data(), oDeviceGray.pitch(), imageSize, oOrigin,
+        oDeviceContour.data(), oDeviceContour.pitch(), imageSize,
+        NPP_FILTER_SOBEL, NPP_MASK_SIZE_5_X_5,
+        nLowThreshold, nHighThreshold,
+        nppiNormL2, NPP_BORDER_REPLICATE,
+        pContourBufferNPP));
+
+    // Debug: copy contour to color image to save.
+    // npp::ImageNPP_8u_C4 oDeviceDst(imageSize.width, imageSize.height);
+    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+    //     oDeviceContour.data(), oDeviceContour.pitch(),
+    //     oDeviceDst.data(), oDeviceDst.pitch(),
+    //     imageSize));
+    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+    //     oDeviceContour.data(), oDeviceContour.pitch(),
+    //     oDeviceDst.data() + 1, oDeviceDst.pitch(),
+    //     imageSize));
+    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+    //     oDeviceContour.data(), oDeviceContour.pitch(),
+    //     oDeviceDst.data() + 2, oDeviceDst.pitch(),
+    //     imageSize));
+
+    // setup buffer for sum calculation.
+    int sumBufferSize;
+    Npp8u *sumDeviceBuffer;
+    NPP_CHECK_NPP(nppiSumGetBufferHostSize_8u_C1R(imageSize, &sumBufferSize));
+    cudaMalloc((void **)(&sumDeviceBuffer), sumBufferSize);
+
+    // setup pointer for sum result.
+    Npp64f *pSum;
+    cudaMalloc((void **)(&pSum), sizeof(Npp64f));
+    NPP_CHECK_NPP(nppiSum_8u_C1R(oDeviceContour.data(), oDeviceContour.pitch(), imageSizeROI(oDeviceContour), sumDeviceBuffer, pSum));
+
+    // copy result to host.
+    Npp64f nSumHost;
+    cudaMemcpy(&nSumHost, pSum, sizeof(Npp64f), cudaMemcpyDeviceToHost);
+
+    return (float)(nSumHost / 255.0) / (float)(imageSize.width * imageSize.height) * 100.0;
 }
 
-int main(int argc, char *argv[])
+std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    printf("%s Starting...\n\n", argv[0]);
+    // Does 1 random mutation to `oDeviceSrc` and outputs to `oDeviceDst`.
+    // Mutations include but are not limited to:
+    // applying a texture, applying a filter, transforming the image geometry, or morpology.
+    // The returned string describes the mutation done.
 
-    npp::ImageNPP_8u_C4 oDeviceLena;
-    loadImage("data/Lena.png", oDeviceLena);
+    NppiRect textureROI = {0, 0, 200, 250};
+    NppiPoint textureStart = {10, 20};
+    textureROI = moveROI(textureROI, textureStart);
+    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, moveROI(imageROI(oArgyleTexture), textureStart), oArgyleTexture, oDeviceSrc);
 
-    npp::ImageNPP_8u_C4 oDeviceGradient(1000,1000);
-    makeGradient(oDeviceGradient);
-
-    npp::ImageNPP_8u_C4 oArgyleTexture;
-    npp::ImageNPP_8u_C4 oRufflesTexture;
-    loadImage("data/textures/argyle.png", oArgyleTexture);
-    loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
-
-    rotateTexture(oRufflesTexture, 45, oRufflesTexture);
-
-    // npp::ImageNPP_8u_C4 oDeviceDst(oDeviceLena.width(), oDeviceLena.height());
-    npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
-    NppiPoint shift = {100, 500};
-    // rotateT(oDeviceLena, 0, shift, oDeviceDst);
-
-    // crop(oDeviceLena, shift, oDeviceDst);
-
-    // rotateTexture(oDeviceLena, 45.0, oDeviceDst);
-
-    NppiRect textureROI = {10, 50, 200, 250};
-    addTextureROI(oDeviceGradient, textureROI, oArgyleTexture, oDeviceGradient);
-    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
-    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
-    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
-    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
-    addTextureROI(oDeviceGradient, textureROI, oRufflesTexture, oDeviceGradient);
-
-    // addTexture(oDeviceGradient, oArgyleTexture, oDeviceGradient);
-    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
-    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
-    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
-    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
-    // addTexture(oDeviceGradient, oRufflesTexture, oDeviceGradient);
+    // addTexture(oDeviceSrc, oArgyleTexture, oDeviceSrc);
+    addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
 
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
@@ -365,15 +430,41 @@ int main(int argc, char *argv[])
     // 0, 127, 255 excluded.
     Npp8u linear5[4] = {24, 102, 153, 230};
 
-    Npp8u constant[8] = {255,255,255,255,255,255,255,255};
-    Npp8u zeros[8] = {0,0,0,0,0,0,0,0};
+    Npp8u constant[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+    Npp8u zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
 
     const Npp8u *pallet3[3] = {linear10, linear10, halfs};
     const Npp8u *pallet2[3] = {linear5, linear5, halfs};
 
-    downSampleA3(oDeviceGradient, pallet3, oDeviceDst);
-    // downSampleA2(oDeviceGradient, pallet2, oDeviceDst);
+    // downSampleA3(oDeviceSrc, pallet3, oDeviceDst);
+    downSampleA2(oDeviceSrc, pallet2, oDeviceDst);
+
+    // default gradient at 3-bit depth: 3000
+    float cc = contourCount(oDeviceDst);
+    std::cout << cc << std::endl;
+
+    return "test";
+}
+
+void loadTextures() {
+    loadImage("data/textures/argyle.png", oArgyleTexture);
+    loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
+
+    rotateTexture(oRufflesTexture, 45, oRufflesTexture);
+}
+
+int main(int argc, char *argv[])
+{
+    printf("%s Starting...\n\n", argv[0]);
+    loadTextures();
+
+    // Base gradient all operations will be performed on.
+    npp::ImageNPP_8u_C4 oDeviceGradient(500,500);
+    makeGradient(oDeviceGradient);
+    npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
+
+    mutateImage(oDeviceGradient, oDeviceDst);
 
     std::string sResultFilename = "data/testG.png";
     npp::saveImage(sResultFilename, oDeviceDst);
