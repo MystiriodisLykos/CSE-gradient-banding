@@ -57,8 +57,7 @@ NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
 {
     NppiSize oROI = {
         (int)oDeviceSrc.width(),
-        (int)oDeviceSrc.height()
-        };
+        (int)oDeviceSrc.height()};
     return oROI;
 }
 
@@ -70,7 +69,8 @@ NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc)
     return oROI;
 }
 
-NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
     NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
     NppiRect oROI = {
         0,
@@ -80,13 +80,13 @@ NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
     return oROI;
 }
 
-NppiRect moveROI(NppiRect oROI, NppiPoint to) {
+NppiRect moveROI(NppiRect oROI, NppiPoint to)
+{
     NppiRect r = {
         oROI.x + to.x,
         oROI.y + to.y,
         oROI.width + to.x,
-        oROI.height + to.y
-    };
+        oROI.height + to.y};
     return r;
 }
 
@@ -197,7 +197,8 @@ void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::Image
     oDeviceDSt.swap(oResImage);
 }
 
-void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt) {
+void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
     // Adds `textureSrc` to only the top half of `oDeviceSrc`.
 
     NppiRect oSrcROI = imageROI(oDeviceSrc);
@@ -223,7 +224,7 @@ void addTextureMH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureS
 
     NppiRect oSrcROI = imageROI(oDeviceSrc);
     oSrcROI.height /= 2;
-    oSrcROI.y += (oSrcROI.height/2);
+    oSrcROI.y += (oSrcROI.height / 2);
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
 }
@@ -255,7 +256,7 @@ void addTextureMBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &texture
 
     NppiRect oSrcROI = imageROI(oDeviceSrc);
     oSrcROI.height /= 4;
-    oSrcROI.y += oSrcROI.height*2;
+    oSrcROI.y += oSrcROI.height * 2;
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
 }
@@ -298,7 +299,7 @@ void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
 
     // Initial low resolution gradient.
     // Needs to be at least 2 across or resize gives a ROI error.
-    npp::ImageNPP_8u_C4 oHostGradient(2,4);
+    npp::ImageNPP_8u_C4 oHostGradient(2, 4);
 
     NppiSize oROI = imageSizeROI(oHostGradient);
     NppiRect oRectROI = imageROI(oHostGradient);
@@ -472,6 +473,52 @@ float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
     return (float)(nSumHost / 255.0) / (float)(imageSize.width * imageSize.height) * 100.0;
 }
 
+void blur(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst) {
+    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
+
+    NppiPoint origin = {0,0};
+
+    NPP_CHECK_NPP(nppiFilterGaussBorder_8u_C4R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
+        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        NPP_MASK_SIZE_5_X_5, NPP_BORDER_REPLICATE));
+}
+
+void sharpen(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
+
+    NppiPoint origin = {0, 0};
+
+    NPP_CHECK_NPP(nppiFilterSharpenBorder_8u_C4R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
+        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        NPP_BORDER_REPLICATE));
+}
+
+void dialate(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst) {
+    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
+
+    NppiPoint origin = {0, 0};
+
+    NPP_CHECK_NPP(nppiDilate3x3Border_8u_C4R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
+        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        NPP_BORDER_REPLICATE));
+}
+
+void erode(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
+
+    NppiPoint origin = {0, 0};
+
+    NPP_CHECK_NPP(nppiErode3x3Border_8u_C4R(
+        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
+        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        NPP_BORDER_REPLICATE));
+}
+
 std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
     // Does 1 random mutation to `oDeviceSrc` and outputs to `oDeviceDst`.
@@ -499,7 +546,13 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
     addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
     addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+
+    dialate(oDeviceSrc, oDeviceSrc);
+    blur(oDeviceSrc, oDeviceSrc);
+    sharpen(oDeviceSrc, oDeviceSrc);
+    erode(oDeviceSrc, oDeviceSrc);
+    blur(oDeviceSrc, oDeviceSrc);
 
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
@@ -526,7 +579,8 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     return "test";
 }
 
-void loadTextures() {
+void loadTextures()
+{
     loadImage("data/textures/argyle.png", oArgyleTexture);
     loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
 
@@ -539,7 +593,7 @@ int main(int argc, char *argv[])
     loadTextures();
 
     // Base gradient all operations will be performed on.
-    npp::ImageNPP_8u_C4 oDeviceGradient(500,500);
+    npp::ImageNPP_8u_C4 oDeviceGradient(500, 500);
     makeGradient(oDeviceGradient);
     npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
 
