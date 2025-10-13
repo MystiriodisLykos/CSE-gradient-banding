@@ -43,20 +43,25 @@ BIN_DIR = bin
 DATA_DIR = data
 LIB_DIR = lib
 
-# Define source files and target executable
-# SRC = $(SRC_DIR)/imageRotationNPP.cpp
-# TARGET = $(BIN_DIR)/imageRotationNPP
+objects = $(BIN_DIR)/gradient-banding.o $(BIN_DIR)/transformation.o
 
-SRC = $(SRC_DIR)/gradient-banding.cpp
+# Define source files and target executable
+# SRC = $(SRC_DIR)/transformation.cpp $(SRC_DIR)/gradient-banding.cpp
 TARGET = $(BIN_DIR)/gradient-banding
 
 # Define the default rule
 all: $(TARGET)
 
 # Rule for building the target executable
-$(TARGET): $(SRC)
+$(TARGET): $(objects)
 	mkdir -p $(BIN_DIR)
-	$(NVCC) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+	$(NVCC) $(CXXFLAGS) $(objects) -o $(TARGET) $(LDFLAGS)
+
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp
+	$(NVCC) $(CXXFLAGS) -c $< -o $@
+
+show: $(SRC_DIR)/%.cpp
+	echo $<
 
 # Rule for running the application
 run: $(TARGET)

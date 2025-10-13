@@ -1,18 +1,20 @@
-#include <Exceptions.h>
+// #include <Exceptions.h>
 #include <util.h>
-#include <ImagesCPU.h>
-#include <ImagesNPP.h>
+// #include <ImagesCPU.h>
+// // #include <ImagesNPP.h>
 
-#include <string.h>
+// #include <string.h>
 #include <fstream>
-#include <iostream>
+// #include <iostream>
 #include <cmath>
 
-#include <cuda_runtime.h>
-#include <npp.h>
+// #include <cuda_runtime.h>
+// // #include <npp.h>
 
 #include <helper_cuda.h>
-#include <helper_string.h>
+// #include <helper_string.h> 
+
+#include <transformation.h>
 
 npp::ImageNPP_8u_C4 oArgyleTexture;
 npp::ImageNPP_8u_C4 oRufflesTexture;
@@ -53,100 +55,12 @@ void loadImage(std::string sFilename, npp::ImageNPP_8u_C4 &rImage)
     rImage.swap(oDevice);
 }
 
-NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiSize oROI = {
-        (int)oDeviceSrc.width(),
-        (int)oDeviceSrc.height()
-        };
-    return oROI;
-}
-
-NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc)
-{
-    NppiSize oROI = {
-        (int)oDeviceSrc.width(),
-        (int)oDeviceSrc.height()};
-    return oROI;
-}
-
-NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
-    NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
-    NppiRect oROI = {
-        0,
-        0,
-        oSizeROI.width,
-        oSizeROI.height};
-    return oROI;
-}
-
-NppiRect moveROI(NppiRect oROI, NppiPoint to) {
-    NppiRect r = {
-        oROI.x + to.x,
-        oROI.y + to.y,
-        oROI.width + to.x,
-        oROI.height + to.y
-    };
-    return r;
-}
-
-void rotateT(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, NppiPoint shift, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // rotates oDeviceSrc by `angle` and translated by `shift`, reults in `oDeviceDSt`.
-
-    NPP_CHECK_NPP(nppiRotate_8u_C4R(
-        oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(), imageROI(oDeviceSrc),
-        oDeviceDst.data(), oDeviceDst.pitch(), imageROI(oDeviceDst),
-        angle, -shift.x, -shift.y,
-        // angle, 0, 0,
-        NPPI_INTER_LINEAR));
-}
-
-void rotate(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Calculate rotated bounding box.
-    double aBoundingBox[2][2] = {0};
-    NPP_CHECK_NPP(nppiGetRotateBound(imageROI(oDeviceSrc), aBoundingBox, angle, 0, 0));
-    NppiRect oRotatedROI = {0,
-                            0,
-                            (int)(aBoundingBox[1][0] - aBoundingBox[0][0]),
-                            (int)(aBoundingBox[1][1] - aBoundingBox[0][1])};
-
-    npp::ImageNPP_8u_C4 oRotated(oRotatedROI.width, oRotatedROI.height);
-
-    // shift to center rotated image.
-    NppiPoint shift = {(int)aBoundingBox[0][0], (int)aBoundingBox[0][1]};
-    rotateT(oDeviceSrc, angle, shift, oRotated);
-
-    oDeviceDst.swap(oRotated);
-}
-
-void crop(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint oCropPoint, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // crops `oDeviceSrc` from `oCropPoint` to size of `oDeviceDst`, result in `oDeviceDst`.
-
-    // There doesn't seem to be an easy crop function, so a 0 degree rotation is used instead.
-    rotateT(oDeviceSrc, 0, oCropPoint, oDeviceDst);
-}
-
-void move(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint to, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Moves `oDeviceSrc` to the point `to` in `oDeviceDst`.
-
-    // A 0 degree rotation feels like the easiest way to do this.
-    NPP_CHECK_NPP(nppiRotate_8u_C4R(
-        oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(), imageROI(oDeviceSrc),
-        oDeviceDst.data(), oDeviceDst.pitch(), imageROI(oDeviceDst),
-        0, to.x, to.y,
-        NPPI_INTER_LINEAR));
-}
-
 void wrapTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
 {
     // Repeats the textureSrc over the oDeviceDst image, overwriting whatever is there.
 
-    NppiSize oTextureSizeROI = imageSizeROI(textureSrc);
-    NppiSize oDeviceSizeROI = imageSizeROI(oDeviceDSt);
+    NppiSize oTextureSizeROI = npp::imageSizeROI(textureSrc);
+    NppiSize oDeviceSizeROI = npp::imageSizeROI(oDeviceDSt);
 
     NPP_CHECK_NPP(nppiCopyWrapBorder_8u_C4R(
         textureSrc.data(), textureSrc.pitch(), oTextureSizeROI,
@@ -160,7 +74,7 @@ void addTexture(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc
     // Adds the textureSrc over the oDeviceSrc, outputs to the oDeivceDst.
     // textureSrc is repeated vertically and horizontally as needed to cover the oDeviceSrc.
 
-    NppiSize oSrcSizeROI = imageSizeROI(oDeviceSrc);
+    NppiSize oSrcSizeROI = npp::imageSizeROI(oDeviceSrc);
 
     npp::ImageNPP_8u_C4 textureWrap(oDeviceDSt.width(), oDeviceDSt.height());
     wrapTexture(textureSrc, textureWrap);
@@ -189,7 +103,7 @@ void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::Image
     nppiCopy_8u_C4R(
         oDeviceSrc.data(), oDeviceSrc.pitch(),
         oResImage.data(), oResImage.pitch(),
-        imageSizeROI(oDeviceSrc));
+        npp::imageSizeROI(oDeviceSrc));
 
     // Move the textured region on the copy of the src iamge.
     move(oDeviceRegion, start, oResImage);
@@ -197,10 +111,11 @@ void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::Image
     oDeviceDSt.swap(oResImage);
 }
 
-void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt) {
+void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+{
     // Adds `textureSrc` to only the top half of `oDeviceSrc`.
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 2;
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
@@ -210,7 +125,7 @@ void addTextureBH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureS
 {
     // Adds `textureSrc` to only the bottom half of `oDeviceSrc`.
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 2;
     oSrcROI.y += oSrcROI.height;
 
@@ -221,9 +136,9 @@ void addTextureMH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureS
 {
     // Adds `textureSrc` to only the Middle (between top and bottom quarters) half of `oDeviceSrc`.
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 2;
-    oSrcROI.y += (oSrcROI.height/2);
+    oSrcROI.y += (oSrcROI.height / 2);
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
 }
@@ -232,7 +147,7 @@ void addTextureTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureS
 {
     // Adds texture on only the top quarter of the image
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 4;
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
@@ -242,7 +157,7 @@ void addTextureMTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &texture
 {
     // Adds texture on only the middle top quarter of the image
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 4;
     oSrcROI.y += oSrcROI.height;
 
@@ -253,9 +168,9 @@ void addTextureMBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &texture
 {
     // Adds texture on only the middle bottom quarter of the image
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 4;
-    oSrcROI.y += oSrcROI.height*2;
+    oSrcROI.y += oSrcROI.height * 2;
 
     addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
 }
@@ -264,7 +179,7 @@ void addTextureBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureS
 {
     // Adds texture on only the bottom quarter of the image
 
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
+    NppiRect oSrcROI = npp::imageROI(oDeviceSrc);
     oSrcROI.height /= 4;
     oSrcROI.y += oSrcROI.height * 3;
 
@@ -298,10 +213,10 @@ void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
 
     // Initial low resolution gradient.
     // Needs to be at least 2 across or resize gives a ROI error.
-    npp::ImageNPP_8u_C4 oHostGradient(2,4);
+    npp::ImageNPP_8u_C4 oHostGradient(2, 4);
 
-    NppiSize oROI = imageSizeROI(oHostGradient);
-    NppiRect oRectROI = imageROI(oHostGradient);
+    NppiSize oROI = npp::imageSizeROI(oHostGradient);
+    NppiRect oRectROI = npp::imageROI(oHostGradient);
 
     Npp8u white[] = {255, 255, 255, 255};
     Npp8u lightred[] = {191, 191, 255, 255};
@@ -335,8 +250,8 @@ void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
         oHostGradient.data(), oHostGradient.pitch(),
         otopROI));
 
-    NppiSize oDeviceSizeROI = imageSizeROI(oDeviceGradient);
-    NppiRect oDeviceRectROI = imageROI(oDeviceGradient);
+    NppiSize oDeviceSizeROI = npp::imageSizeROI(oDeviceGradient);
+    NppiRect oDeviceRectROI = npp::imageROI(oDeviceGradient);
 
     // Use resize linear interpolation to make a smooth gradient in oDeviceGradient.
     NPP_CHECK_NPP(nppiResize_8u_C4R(
@@ -377,13 +292,13 @@ void downSampleA(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], Npp8u
     const Npp32u aConstants[4] = {shift, shift, shift, 0};
     NPP_CHECK_NPP(nppiRShiftC_8u_C4R(
         oDeviceSrc.data(), oDeviceSrc.pitch(), aConstants,
-        oDeviceDst.data(), oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
+        oDeviceDst.data(), oDeviceDst.pitch(), npp::imageSizeROI(oDeviceSrc)));
 
     // Recolor to pallet.
     NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
         oDeviceDst.data(), oDeviceDst.pitch(),
         oDeviceDst.data(), oDeviceDst.pitch(),
-        imageSizeROI(oDeviceSrc),
+        npp::imageSizeROI(oDeviceSrc),
         pallet, bitDepth));
 }
 
@@ -412,7 +327,7 @@ float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
     // Computes an image contour `oDeviceSrc` and returns what percent count as a contour.
     // Contours are calculated with nppiFilterCannyBorder_8u_C1R.
 
-    NppiSize imageSize = imageSizeROI(oDeviceSrc);
+    NppiSize imageSize = npp::imageSizeROI(oDeviceSrc);
 
     // Convert to grayscale for contour detection
     npp::ImageNPP_8u_C1 oDeviceGray(imageSize.width, imageSize.height);
@@ -463,7 +378,7 @@ float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
     // setup pointer for sum result.
     Npp64f *pSum;
     cudaMalloc((void **)(&pSum), sizeof(Npp64f));
-    NPP_CHECK_NPP(nppiSum_8u_C1R(oDeviceContour.data(), oDeviceContour.pitch(), imageSizeROI(oDeviceContour), sumDeviceBuffer, pSum));
+    NPP_CHECK_NPP(nppiSum_8u_C1R(oDeviceContour.data(), oDeviceContour.pitch(), npp::imageSizeROI(oDeviceContour), sumDeviceBuffer, pSum));
 
     // copy result to host.
     Npp64f nSumHost;
@@ -481,13 +396,13 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
 
     NppiRect textureROI = {0, 0, 200, 250};
     NppiPoint textureStart = {10, 20};
-    textureROI = moveROI(textureROI, textureStart);
+    textureROI = npp::moveROI(textureROI, textureStart);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, moveROI(imageROI(oArgyleTexture), textureStart), oArgyleTexture, oDeviceSrc);
+    // addTextureROI(oDeviceSrc, npp::moveROI(npp::imageROI(oArgyleTexture), textureStart), oArgyleTexture, oDeviceSrc);
 
     addTextureMTQ(oDeviceSrc, oArgyleTexture, oDeviceSrc);
     addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
@@ -526,7 +441,8 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     return "test";
 }
 
-void loadTextures() {
+void loadTextures()
+{
     loadImage("data/textures/argyle.png", oArgyleTexture);
     loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
 
@@ -539,7 +455,7 @@ int main(int argc, char *argv[])
     loadTextures();
 
     // Base gradient all operations will be performed on.
-    npp::ImageNPP_8u_C4 oDeviceGradient(500,500);
+    npp::ImageNPP_8u_C4 oDeviceGradient(500, 500);
     makeGradient(oDeviceGradient);
     npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
 

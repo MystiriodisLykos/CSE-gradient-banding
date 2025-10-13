@@ -2,6 +2,8 @@
 #ifndef NV_UTIL_NPP_IMAGE_IO_H
 #define NV_UTIL_NPP_IMAGE_IO_H
 
+#pragma once
+
 #include "ImagesCPU.h"
 #include "ImagesNPP.h"
 
@@ -10,6 +12,7 @@
 
 #include <string>
 #include "string.h"
+
 
 // Error handler for FreeImage library.
 //  In case this handler is invoked, it throws an NPP exception.
@@ -104,6 +107,44 @@ namespace npp
         rImage.copyTo(oHostImage.data(), oHostImage.pitch());
         saveImage(rFileName, oHostImage);
     }
+
+    NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
+    {
+        NppiSize oROI = {
+            (int)oDeviceSrc.width(),
+            (int)oDeviceSrc.height()};
+        return oROI;
+    }
+
+    NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc)
+    {
+        NppiSize oROI = {
+            (int)oDeviceSrc.width(),
+            (int)oDeviceSrc.height()};
+        return oROI;
+    }
+
+    NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
+    {
+        NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
+        NppiRect oROI = {
+            0,
+            0,
+            oSizeROI.width,
+            oSizeROI.height};
+        return oROI;
+    }
+
+    NppiRect moveROI(NppiRect oROI, NppiPoint to)
+    {
+        NppiRect r = {
+            oROI.x + to.x,
+            oROI.y + to.y,
+            oROI.width + to.x,
+            oROI.height + to.y};
+        return r;
+    }
+
 } // namespace npp
 
 #endif // NV_UTIL_NPP_IMAGE_IO_H
