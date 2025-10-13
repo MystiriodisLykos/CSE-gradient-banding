@@ -473,6 +473,10 @@ float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
     return (float)(nSumHost / 255.0) / (float)(imageSize.width * imageSize.height) * 100.0;
 }
 
+// TODO: make these take an ROI
+// make functions for half/quarter ROIs
+// remove texture half/quarter functions
+// make mutate, pick a function, then an roi
 void blur(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst) {
     NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
 
