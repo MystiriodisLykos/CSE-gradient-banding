@@ -172,29 +172,20 @@ void addTexture(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc
         oSrcSizeROI, 0));
 }
 
-void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds the textureSrc to the oDeviceSrc only in the oSrcROI, outputs to the oDeivceDst.
-    // textureSrc is repeated vertically and horizontally as needed to cover the oSrcROI.
+void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt) {
 
-    // Crop oDeviceSrc to the oSrcROI
-    npp::ImageNPP_8u_C4 oDeviceRegion(oSrcROI.width, oSrcROI.height);
-    NppiPoint start = {oSrcROI.x, oSrcROI.y};
-    crop(oDeviceSrc, start, oDeviceRegion);
+    // Intentionally making a texture for the full destination region
+    // and not just the ROI, so adding the same texture in multiple ROI is consistent.
+    npp::ImageNPP_8u_C4 textureWrap(oDeviceDSt.width(), oDeviceDSt.height());
+    wrapTexture(textureSrc, textureWrap);
 
-    addTexture(oDeviceRegion, textureSrc, oDeviceRegion);
+    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    // Make a copy of oDeviceSrc to coped the textured ROI into.
-    npp::ImageNPP_8u_C4 oResImage(oDeviceSrc.width(), oDeviceSrc.height());
-    nppiCopy_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(),
-        oResImage.data(), oResImage.pitch(),
-        imageSizeROI(oDeviceSrc));
-
-    // Move the textured region on the copy of the src iamge.
-    move(oDeviceRegion, start, oResImage);
-
-    oDeviceDSt.swap(oResImage);
+    NPP_CHECK_NPP(nppiAdd_8u_C4RSfs(
+        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(),
+        textureWrap.data(), textureWrap.pitch(),
+        oDeviceDSt.data(oSrcROI.x, oSrcROI.y), oDeviceDSt.pitch(),
+        oROI, 0));
 }
 
 void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
