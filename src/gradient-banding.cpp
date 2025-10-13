@@ -473,53 +473,50 @@ float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
     return (float)(nSumHost / 255.0) / (float)(imageSize.width * imageSize.height) * 100.0;
 }
 
-// TODO: make these take an ROI
-// make functions for half/quarter ROIs
-// remove texture half/quarter functions
-// make mutate, pick a function, then an roi
-void blur(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst) {
-    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
-
-    NppiPoint origin = {0,0};
+void blurROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    NppiPoint origin = {0, 0};
+    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
     NPP_CHECK_NPP(nppiFilterGaussBorder_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
-        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
         NPP_MASK_SIZE_5_X_5, NPP_BORDER_REPLICATE));
 }
 
-void sharpen(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+void sharpenROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
-
     NppiPoint origin = {0, 0};
+    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
     NPP_CHECK_NPP(nppiFilterSharpenBorder_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
-        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
         NPP_BORDER_REPLICATE));
 }
 
-void dialate(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst) {
-    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
-
+// TODO: make functions for half/quarter ROIs
+// remove texture half/quarter functions
+// make mutate, pick a function, then an roi
+void dialateROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
     NppiPoint origin = {0, 0};
+    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
     NPP_CHECK_NPP(nppiDilate3x3Border_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
-        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
         NPP_BORDER_REPLICATE));
 }
 
-void erode(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+void erodeROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    NppiSize oSrcSize = imageSizeROI(oDeviceSrc);
-
-    NppiPoint origin = {0, 0};
+    NppiPoint origin = {0,0};
+    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
     NPP_CHECK_NPP(nppiErode3x3Border_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), oSrcSize, origin,
-        oDeviceDst.data(), oDeviceDst.pitch(), oSrcSize,
+        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
         NPP_BORDER_REPLICATE));
 }
 
@@ -530,33 +527,32 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
     // applying a texture, applying a filter, transforming the image geometry, or morpology.
     // The returned string describes the mutation done.
 
-    NppiRect textureROI = {0, 0, 200, 250};
-    NppiPoint textureStart = {10, 20};
+    NppiRect textureROI = {0, 0, 200, 100};
+    NppiPoint textureStart = {100, 100};
     textureROI = moveROI(textureROI, textureStart);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
     // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, moveROI(imageROI(oArgyleTexture), textureStart), oArgyleTexture, oDeviceSrc);
+    addTextureROI(oDeviceSrc, textureROI, oArgyleTexture, oDeviceSrc);
 
-    addTextureMTQ(oDeviceSrc, oArgyleTexture, oDeviceSrc);
-    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureMTQ(oDeviceSrc, oArgyleTexture, oDeviceSrc);
+    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
 
-    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
     addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
 
-    dialate(oDeviceSrc, oDeviceSrc);
-    blur(oDeviceSrc, oDeviceSrc);
-    sharpen(oDeviceSrc, oDeviceSrc);
-    erode(oDeviceSrc, oDeviceSrc);
-    blur(oDeviceSrc, oDeviceSrc);
+    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
+    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
+    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
+    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
 
     // approximate linear gradient between 0 and 255 split into 10 parts.
     // 0, 127, 255 excluded.
