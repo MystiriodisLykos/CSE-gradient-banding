@@ -14,8 +14,19 @@
 #include <helper_cuda.h>
 #include <helper_string.h>
 
+npp::ImageNPP_8u_C4 o45DegreeTexture;
 npp::ImageNPP_8u_C4 oArgyleTexture;
+npp::ImageNPP_8u_C4 oOrchidTexture;
+npp::ImageNPP_8u_C4 oAlumTexture;
+npp::ImageNPP_8u_C4 oCardboardTexture;
+npp::ImageNPP_8u_C4 oPaperTexture;
 npp::ImageNPP_8u_C4 oRufflesTexture;
+npp::ImageNPP_8u_C4 oScratchesTexture;
+npp::ImageNPP_8u_C4 oMapTexture;
+npp::ImageNPP_8u_C4 oMoonTexture;
+npp::ImageNPP_8u_C4 oTreeTexture;
+npp::ImageNPP_8u_C4 oCircleTexture;
+int numTextures;
 
 void loadImage(std::string sFilename, npp::ImageNPP_8u_C4 &rImage)
 {
@@ -517,10 +528,22 @@ std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oD
 
 void loadTextures()
 {
+    loadImage("data/textures/45-degree-fabric-light.png", o45DegreeTexture);
     loadImage("data/textures/argyle.png", oArgyleTexture);
+    loadImage("data/textures/black-orchid.png", oOrchidTexture);
+    loadImage("data/textures/brushed-alum.png", oAlumTexture);
+    loadImage("data/textures/cardboard-flat.png", oCardboardTexture);
+    loadImage("data/textures/clean-gray-paper.png", oPaperTexture);
     loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
+    loadImage("data/textures/cross-scratches.png", oScratchesTexture);
+    loadImage("data/textures/old-map.png", oMapTexture);
+    loadImage("data/textures/old-moon.png", oMoonTexture);
+    loadImage("data/textures/shley-tree-1.png", oTreeTexture);
+    loadImage("data/textures/soft-circle-scales.png", oCircleTexture);
 
     rotateTexture(oRufflesTexture, 45, oRufflesTexture);
+
+    numTextures = 12;
 }
 
 int main(int argc, char *argv[])
