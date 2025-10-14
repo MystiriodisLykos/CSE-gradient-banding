@@ -80,14 +80,53 @@ NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
     return oROI;
 }
 
-NppiRect moveROI(NppiRect oROI, NppiPoint to)
+NppiRect imageROI_TH(npp::ImageNPP_8u_C4 &oDeviceSrc)
 {
-    NppiRect r = {
-        oROI.x + to.x,
-        oROI.y + to.y,
-        oROI.width + to.x,
-        oROI.height + to.y};
-    return r;
+    NppiRect oFullROI = imageROI(oDeviceSrc);
+    oFullROI.height /= 2;
+    return oFullROI;
+}
+
+NppiRect imageROI_BH(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
+    oROI_TH.y += oROI_TH.height;
+    return oROI_TH;
+}
+
+NppiRect imageROI_MH(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
+    oROI_TH.y += oROI_TH.height / 2;
+    return oROI_TH;
+}
+
+NppiRect imageROI_TQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oFullROI = imageROI(oDeviceSrc);
+    oFullROI.height /= 4;
+    return oFullROI;
+}
+
+NppiRect imageROI_MTQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oROI_TQ = imageROI_TQ(oDeviceSrc);
+    oROI_TQ.y += oROI_TQ.height;
+    return oROI_TQ;
+}
+
+NppiRect imageROI_MBQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oROI_MTQ = imageROI_MTQ(oDeviceSrc);
+    oROI_MTQ.y += oROI_MTQ.height;
+    return oROI_MTQ;
+}
+
+NppiRect imageROI_BQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
+{
+    NppiRect oROI_MBQ = imageROI_MBQ(oDeviceSrc);
+    oROI_MBQ.y += oROI_MBQ.height;
+    return oROI_MBQ;
 }
 
 void rotateT(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, NppiPoint shift, npp::ImageNPP_8u_C4 &oDeviceDst)
@@ -155,24 +194,8 @@ void wrapTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDS
         oDeviceSizeROI.width - oTextureSizeROI.width));
 }
 
-void addTexture(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
+void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
 {
-    // Adds the textureSrc over the oDeviceSrc, outputs to the oDeivceDst.
-    // textureSrc is repeated vertically and horizontally as needed to cover the oDeviceSrc.
-
-    NppiSize oSrcSizeROI = imageSizeROI(oDeviceSrc);
-
-    npp::ImageNPP_8u_C4 textureWrap(oDeviceDSt.width(), oDeviceDSt.height());
-    wrapTexture(textureSrc, textureWrap);
-
-    NPP_CHECK_NPP(nppiAdd_8u_C4RSfs(
-        oDeviceSrc.data(), oDeviceSrc.pitch(),
-        textureWrap.data(), textureWrap.pitch(),
-        oDeviceDSt.data(), oDeviceDSt.pitch(),
-        oSrcSizeROI, 0));
-}
-
-void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt) {
 
     // Intentionally making a texture for the full destination region
     // and not just the ROI, so adding the same texture in multiple ROI is consistent.
@@ -186,81 +209,6 @@ void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::Image
         textureWrap.data(), textureWrap.pitch(),
         oDeviceDSt.data(oSrcROI.x, oSrcROI.y), oDeviceDSt.pitch(),
         oROI, 0));
-}
-
-void addTextureTH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds `textureSrc` to only the top half of `oDeviceSrc`.
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 2;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureBH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds `textureSrc` to only the bottom half of `oDeviceSrc`.
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 2;
-    oSrcROI.y += oSrcROI.height;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureMH(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds `textureSrc` to only the Middle (between top and bottom quarters) half of `oDeviceSrc`.
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 2;
-    oSrcROI.y += (oSrcROI.height / 2);
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds texture on only the top quarter of the image
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 4;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureMTQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds texture on only the middle top quarter of the image
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 4;
-    oSrcROI.y += oSrcROI.height;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureMBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds texture on only the middle bottom quarter of the image
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 4;
-    oSrcROI.y += oSrcROI.height * 2;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
-}
-
-void addTextureBQ(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Adds texture on only the bottom quarter of the image
-
-    NppiRect oSrcROI = imageROI(oDeviceSrc);
-    oSrcROI.height /= 4;
-    oSrcROI.y += oSrcROI.height * 3;
-
-    addTextureROI(oDeviceSrc, oSrcROI, textureSrc, oDeviceDSt);
 }
 
 void rotateTexture(npp::ImageNPP_8u_C4 &textureSrc, double angle, npp::ImageNPP_8u_C4 &textureDst)
@@ -486,9 +434,6 @@ void sharpenROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP
         NPP_BORDER_REPLICATE));
 }
 
-// TODO: make functions for half/quarter ROIs
-// remove texture half/quarter functions
-// make mutate, pick a function, then an roi
 void dialateROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
     NppiPoint origin = {0, 0};
