@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <tuple>
 
 #include <cuda_runtime.h>
 #include <npp.h>
@@ -458,7 +459,7 @@ void dialateROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP
 
 void erodeROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    NppiPoint origin = {0,0};
+    NppiPoint origin = {0, 0};
     NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
     NPP_CHECK_NPP(nppiErode3x3Border_8u_C4R(
@@ -467,63 +468,234 @@ void erodeROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8
         NPP_BORDER_REPLICATE));
 }
 
-std::string mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+void copyTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &textureDst) {
+    npp::ImageNPP_8u_C4 oTextureCopy(textureSrc.width(), textureSrc.height());
+    textureSrc.copyTo(oTextureCopy.data(), oTextureCopy.pitch());
+    textureDst.swap(oTextureCopy);
+}
+
+std::string randomTexture(npp::ImageNPP_8u_C4 &texture)
 {
-    // Does 1 random mutation to `oDeviceSrc` and outputs to `oDeviceDst`.
-    // Mutations include but are not limited to:
-    // applying a texture, applying a filter, transforming the image geometry, or morpology.
+    // Pick a texture at random.
+    // returned string is name of picked texture
+
+    switch (rand() % 2)
+    {
+    case 0:
+        copyTexture(o45DegreeTexture, texture);
+        return "45-degree-fabric";
+        break;
+    case 1:
+        copyTexture(oArgyleTexture, texture);
+        return "argyle";
+        break;
+    case 2:
+        copyTexture(oOrchidTexture, texture);
+        return "black-orchid";
+        break;
+    case 3:
+        copyTexture(oAlumTexture, texture);
+        return "brushed-alum";
+        break;
+    case 4:
+        copyTexture(oCardboardTexture, texture);
+        return "cardboard-flat";
+        break;
+    case 5:
+        copyTexture(oPaperTexture, texture);
+        return "clean-gray-paper";
+        break;
+    case 6:
+        copyTexture(oRufflesTexture, texture);
+        return "crisp-paper-ruffles";
+        break;
+    case 7:
+        copyTexture(oScratchesTexture, texture);
+        return "cross-scratches";
+        break;
+    case 8:
+        copyTexture(oMapTexture, texture);
+        return "old-map";
+        break;
+    case 9:
+        copyTexture(oMoonTexture, texture);
+        return "old-moon";
+        break;
+    case 10:
+        copyTexture(oTreeTexture, texture);
+        return "shley-tree-1";
+        break;
+    case 11:
+        copyTexture(oCircleTexture, texture);
+        return "soft-circle-scales";
+        break;
+    }
+    return "no texture";
+}
+
+std::string addRandomTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst) {
+    // Adds one random texture to `oDeviceSrc` in the `oROI`, output in `oDeviceDst`.
+
+    npp::ImageNPP_8u_C4 oTexture;
+    std::string sTexture = randomTexture(oTexture);
+
+    addTextureROI(oDeviceSrc, oROI, oTexture, oDeviceDst);
+    return "Texture: " + sTexture;
+}
+
+std::string addRandomTransformationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst) {
+    // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to `oDeviceDst`.
+    // Mutations include: blur, sharpen, dialate, and erode.
+    // The returned string describes the mutation done.
+    switch (rand() % 4)
+    {
+    case 0:
+        blurROI(oDeviceSrc, oROI, oDeviceDst);
+        return "Blur";
+        break;
+    case 1:
+        sharpenROI(oDeviceSrc, oROI, oDeviceDst);
+        return "Sharpen";
+        break;
+    case 2:
+        dialateROI(oDeviceSrc, oROI, oDeviceDst);
+        return "Dialate";
+        break;
+    case 3:
+        erodeROI(oDeviceSrc, oROI, oDeviceDst);
+        return "Erode";
+        break;
+    }
+    return "no mutation";
+}
+
+std::string doRandomMutationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to `oDeviceDst`.
+    // Mutations include: adding a texture, blur, sharpen, dialate, and erode.
     // The returned string describes the mutation done.
 
-    NppiRect textureROI = {0, 0, 200, 100};
-    NppiPoint textureStart = {100, 100};
-    textureROI = moveROI(textureROI, textureStart);
-    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    // addTextureROI(oDeviceSrc, textureROI, oRufflesTexture, oDeviceSrc);
-    addTextureROI(oDeviceSrc, textureROI, oArgyleTexture, oDeviceSrc);
+    switch (rand() % 3)
+    {
+        case 0:
+        // case 1:
+            return addRandomTextureROI(oDeviceSrc, oROI, oDeviceDst);
+            break;
+        case 1:
+            return addRandomTransformationROI(oDeviceSrc, oROI, oDeviceDst);
+            break;
+        }
 
-    // addTextureMTQ(oDeviceSrc, oArgyleTexture, oDeviceSrc);
-    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureTQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+    return "no mutation";
+}
 
-    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    // addTextureBQ(oDeviceSrc, oRufflesTexture, oDeviceSrc);
-    addTexture(oDeviceSrc, oRufflesTexture, oDeviceSrc);
+std::tuple<std::string, int>
+mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
+{
+    // Does 10 random mutations to `oDeviceSrc` with the output in `oDeviceDst`.
+    // The first 8 are over different ROI's of the image and the last 2 are over the whole image.
+    // The first image is always a texture and the last two are always mutations
+    // returned value is a string of all the mutations and seed for this set.
 
-    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
-    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
-    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
-    blurROI(oDeviceSrc, textureROI, oDeviceSrc);
+    std::stringstream mutations;
+    std::string lastMutation;
 
-    // approximate linear gradient between 0 and 255 split into 10 parts.
-    // 0, 127, 255 excluded.
-    Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
+    int imageSeed = rand();
+    srand(imageSeed);
+    // srand(1);
 
-    // approximate linear gradient between 0 and 255 split into 5 parts.
-    // 0, 127, 255 excluded.
-    Npp8u linear5[4] = {24, 102, 153, 230};
+    NppiRect oImageROI = imageROI(oDeviceDst);
 
-    Npp8u constant[8] = {255, 255, 255, 255, 255, 255, 255, 255};
-    Npp8u zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
+    // String for proof of work images.
+    std::string sIntermediateImagesTemplate =
+        "data/pof/" + std::to_string(imageSeed) + "_";
+    int stepNum = 1;
 
-    const Npp8u *pallet3[3] = {linear10, linear10, halfs};
-    const Npp8u *pallet2[3] = {linear5, linear5, halfs};
+    mutations << "Add to whole image ";
+    lastMutation = addRandomTextureROI(oDeviceSrc, oImageROI, oDeviceDst);
+    mutations << lastMutation << std::endl;
 
-    downSampleA3(oDeviceSrc, pallet3, oDeviceDst);
-    // downSampleA2(oDeviceSrc, pallet2, oDeviceDst);
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
 
-    // default gradient at 3-bit depth: 3000
-    float cc = contourCount(oDeviceDst);
-    std::cout << cc << std::endl;
+    mutations << "Add to Top half ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
 
-    return "test";
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to Bottom half ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to Middle half ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to top quarter ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_TQ(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to middle top quarter ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MTQ(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to middle bottom quarter ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MBQ(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to bottom quarter ";
+    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_BQ(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+    
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to whole image ";
+    lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to whole image ";
+    lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    
+    // Save steps
+    std::ofstream stepFile("data/pof/" + std::to_string(imageSeed) + ".txt");
+    stepFile << mutations.str();
+    stepFile.close();
+
+    return std::make_tuple(mutations.str(), imageSeed);
 }
 
 void loadTextures()
@@ -554,16 +726,55 @@ int main(int argc, char *argv[])
     // Base gradient all operations will be performed on.
     npp::ImageNPP_8u_C4 oDeviceGradient(500, 500);
     makeGradient(oDeviceGradient);
+
+    // Downsampling pallet
+    // approximate linear gradient between 0 and 255 split into 10 parts.
+    // 0, 127, 255 excluded.
+    Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
+
+    // approximate linear gradient between 0 and 255 split into 5 parts.
+    // 0, 127, 255 excluded.
+    Npp8u linear5[4] = {24, 102, 153, 230};
+
+    Npp8u constant[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+    Npp8u zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
+
+    const Npp8u *pallet3[3] = {linear10, linear10, halfs};
+    const Npp8u *pallet2[3] = {linear5, linear5, halfs};
+
     npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
+    std::string sResultFilename;
 
-    mutateImage(oDeviceGradient, oDeviceDst);
+    downSampleA3(oDeviceGradient, pallet3, oDeviceGradient);
+    // downSampleA2(oDeviceGradient, pallet2, oDeviceGradient);
+    float basecontourCount = contourCount(oDeviceGradient);
 
-    std::string sResultFilename = "data/testG.png";
-    npp::saveImage(sResultFilename, oDeviceDst);
-    std::cout << "Saved image: " << sResultFilename << std::endl;
+    std::string mutations;
+    int seed;
+    for (int i = 0; i < 20; i++)
+    {
+        // Copy of gradient
+        oDeviceGradient.copyTo(oDeviceDst.data(), oDeviceDst.pitch());
 
-    nppiFree(oDeviceDst.data());
-    nppiFree(oDeviceGradient.data());
+        tie(mutations, seed) = mutateImage(oDeviceDst, oDeviceDst);
+        // std::cout << mutations << std::endl;
+
+        downSampleA3(oDeviceDst, pallet3, oDeviceDst);
+        // downSampleA2(oDeviceDst, pallet2, oDeviceDst);
+
+        float cc = contourCount(oDeviceDst);
+
+        npp::saveImage("data/pof/" + std::to_string(seed) + ".png", oDeviceDst);
+
+        if (cc > basecontourCount * 1.2 && cc < basecontourCount*3.6) {
+            sResultFilename = "data/results/" + std::to_string(seed) + ".png";
+            npp::saveImage(sResultFilename, oDeviceDst);
+            std::cout << cc << " Saved image: " << sResultFilename << std::endl;
+        }
+    }
+
+    std::cout << "Base Countour Count " << basecontourCount << std::endl;
 
     exit(EXIT_SUCCESS);
 }
