@@ -56,6 +56,8 @@ all: $(TARGET)
 # Rule for building the target executable
 $(TARGET): $(SRC)
 	mkdir -p $(BIN_DIR)
+	mkdir -p $(DATA_DIR)/pof/
+	mkdir -p $(DATA_DIR)/results/
 	$(NVCC) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
 
 # Rule for running the application
@@ -65,6 +67,8 @@ run: $(TARGET)
 # Clean up
 clean:
 	rm -rf $(BIN_DIR)/*
+	rm -rf $(DATA_DIR)/pof/*
+	rm -rf $(DATA_DIR)/results/*
 
 # Installation rule (not much to install, but here for completeness)
 install:
