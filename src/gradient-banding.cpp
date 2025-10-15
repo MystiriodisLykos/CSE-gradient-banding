@@ -777,7 +777,7 @@ int main(int argc, char *argv[])
 
     std::string mutations;
     int seed;
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 500; i++)
     {
         // Copy of gradient
         oDeviceGradient.copyTo(oDeviceDst.data(), oDeviceDst.pitch());
@@ -792,7 +792,7 @@ int main(int argc, char *argv[])
 
         npp::saveImage("data/pof/" + std::to_string(seed) + ".png", oDeviceDst);
 
-        if (cc > basecontourCount * 1.2 && cc < basecontourCount*3.6) {
+        if (cc > basecontourCount * 1.25 && cc < basecontourCount*2) {
             sResultFilename = "data/results/" + std::to_string(seed) + ".png";
             npp::saveImage(sResultFilename, oDeviceDst);
             std::cout << cc << " Saved image: " << sResultFilename << std::endl;
