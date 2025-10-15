@@ -592,9 +592,10 @@ std::string doRandomMutationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, 
 std::tuple<std::string, int>
 mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
 {
-    // Does 10 random mutations to `oDeviceSrc` with the output in `oDeviceDst`.
-    // The first 8 are over different ROI's of the image and the last 2 are over the whole image.
-    // The first image is always a texture and the last two are always mutations
+    // Does 13 random mutations to `oDeviceSrc` with the output in `oDeviceDst`.
+    // The last 2 are over the whole image.
+    // The first mutation is always a texture and the last two are always mutations.
+    // There are also always textures added to the 3 halfs, top, middle, bottom.
     // returned value is a string of all the mutations and seed for this set.
 
     std::stringstream mutations;
@@ -627,6 +628,14 @@ mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
     npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
     stepNum += 1;
 
+    mutations << "Add to Top half ";
+    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
     mutations << "Add to Bottom half ";
     lastMutation = doRandomMutationROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
     mutations << lastMutation << std::endl;
@@ -635,8 +644,24 @@ mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
     npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
     stepNum += 1;
 
+    mutations << "Add to Bottom half ";
+    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
     mutations << "Add to Middle half ";
     lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
+    mutations << lastMutation << std::endl;
+
+    // Save for proof of work
+    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
+    stepNum += 1;
+
+    mutations << "Add to Middle half ";
+    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
     mutations << lastMutation << std::endl;
 
     // Save for proof of work
