@@ -1,19 +1,17 @@
 #include <Exceptions.h>
-#include <util.h>
 #include <ImagesCPU.h>
 #include <ImagesNPP.h>
-
-#include <string.h>
-#include <fstream>
-#include <iostream>
-#include <cmath>
-#include <tuple>
-
 #include <cuda_runtime.h>
-#include <npp.h>
-
 #include <helper_cuda.h>
 #include <helper_string.h>
+#include <npp.h>
+#include <string.h>
+#include <util.h>
+
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <tuple>
 
 npp::ImageNPP_8u_C4 o45DegreeTexture;
 npp::ImageNPP_8u_C4 oArgyleTexture;
@@ -29,777 +27,765 @@ npp::ImageNPP_8u_C4 oTreeTexture;
 npp::ImageNPP_8u_C4 oCircleTexture;
 int numTextures;
 
-void loadImage(std::string sFilename, npp::ImageNPP_8u_C4 &rImage)
-{
-    int file_errors = 0;
-    std::ifstream infile(sFilename.data(), std::ifstream::in);
+void loadImage(std::string sFilename, npp::ImageNPP_8u_C4 &rImage) {
+  int file_errors = 0;
+  std::ifstream infile(sFilename.data(), std::ifstream::in);
 
-    if (infile.good())
-    {
-        std::cout << "opened: <" << sFilename.data()
-                  << "> successfully!" << std::endl;
-        file_errors = 0;
-        infile.close();
-    }
-    else
-    {
-        std::cout << "unable to open: <" << sFilename.data() << ">"
-                  << std::endl;
-        file_errors++;
-        infile.close();
-    }
+  if (infile.good()) {
+    std::cout << "opened: <" << sFilename.data() << "> successfully!"
+              << std::endl;
+    file_errors = 0;
+    infile.close();
+  } else {
+    std::cout << "unable to open: <" << sFilename.data() << ">" << std::endl;
+    file_errors++;
+    infile.close();
+  }
 
-    if (file_errors > 0)
-    {
-        exit(EXIT_FAILURE);
-    }
+  if (file_errors > 0) {
+    exit(EXIT_FAILURE);
+  }
 
-    // declare a host image object for an 8-bit grayscale image
-    npp::ImageCPU_8u_C4 oHost;
-    // load gray-scale image from disk
-    npp::loadImage(sFilename, oHost);
-    // declare a device image and copy construct from the host image,
-    // i.e. upload host to device
-    npp::ImageNPP_8u_C4 oDevice(oHost);
+  // declare a host image object for an 8-bit grayscale image
+  npp::ImageCPU_8u_C4 oHost;
+  // load gray-scale image from disk
+  npp::loadImage(sFilename, oHost);
+  // declare a device image and copy construct from the host image,
+  // i.e. upload host to device
+  npp::ImageNPP_8u_C4 oDevice(oHost);
 
-    rImage.swap(oDevice);
+  rImage.swap(oDevice);
 }
 
-NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiSize oROI = {
-        (int)oDeviceSrc.width(),
-        (int)oDeviceSrc.height()};
-    return oROI;
+NppiSize imageSizeROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiSize oROI = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
+  return oROI;
 }
 
-NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc)
-{
-    NppiSize oROI = {
-        (int)oDeviceSrc.width(),
-        (int)oDeviceSrc.height()};
-    return oROI;
+NppiSize imageSizeROI(npp::ImageNPP_8u_C1 &oDeviceSrc) {
+  NppiSize oROI = {(int)oDeviceSrc.width(), (int)oDeviceSrc.height()};
+  return oROI;
 }
 
-NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
-    NppiRect oROI = {
-        0,
-        0,
-        oSizeROI.width,
-        oSizeROI.height};
-    return oROI;
+NppiRect imageROI(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiSize oSizeROI = imageSizeROI(oDeviceSrc);
+  NppiRect oROI = {0, 0, oSizeROI.width, oSizeROI.height};
+  return oROI;
 }
 
-NppiRect imageROI_TH(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oFullROI = imageROI(oDeviceSrc);
-    oFullROI.height /= 2;
-    return oFullROI;
+NppiRect imageROI_TH(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oFullROI = imageROI(oDeviceSrc);
+  oFullROI.height /= 2;
+  return oFullROI;
 }
 
-NppiRect imageROI_BH(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
-    oROI_TH.y += oROI_TH.height;
-    return oROI_TH;
+NppiRect imageROI_BH(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
+  oROI_TH.y += oROI_TH.height;
+  return oROI_TH;
 }
 
-NppiRect imageROI_MH(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
-    oROI_TH.y += oROI_TH.height / 2;
-    return oROI_TH;
+NppiRect imageROI_MH(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oROI_TH = imageROI_TH(oDeviceSrc);
+  oROI_TH.y += oROI_TH.height / 2;
+  return oROI_TH;
 }
 
-NppiRect imageROI_TQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oFullROI = imageROI(oDeviceSrc);
-    oFullROI.height /= 4;
-    return oFullROI;
+NppiRect imageROI_TQ(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oFullROI = imageROI(oDeviceSrc);
+  oFullROI.height /= 4;
+  return oFullROI;
 }
 
-NppiRect imageROI_MTQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oROI_TQ = imageROI_TQ(oDeviceSrc);
-    oROI_TQ.y += oROI_TQ.height;
-    return oROI_TQ;
+NppiRect imageROI_MTQ(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oROI_TQ = imageROI_TQ(oDeviceSrc);
+  oROI_TQ.y += oROI_TQ.height;
+  return oROI_TQ;
 }
 
-NppiRect imageROI_MBQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oROI_MTQ = imageROI_MTQ(oDeviceSrc);
-    oROI_MTQ.y += oROI_MTQ.height;
-    return oROI_MTQ;
+NppiRect imageROI_MBQ(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oROI_MTQ = imageROI_MTQ(oDeviceSrc);
+  oROI_MTQ.y += oROI_MTQ.height;
+  return oROI_MTQ;
 }
 
-NppiRect imageROI_BQ(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    NppiRect oROI_MBQ = imageROI_MBQ(oDeviceSrc);
-    oROI_MBQ.y += oROI_MBQ.height;
-    return oROI_MBQ;
+NppiRect imageROI_BQ(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  NppiRect oROI_MBQ = imageROI_MBQ(oDeviceSrc);
+  oROI_MBQ.y += oROI_MBQ.height;
+  return oROI_MBQ;
 }
 
-void rotateT(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, NppiPoint shift, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // rotates oDeviceSrc by `angle` and translated by `shift`, reults in `oDeviceDSt`.
+void rotateT(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, NppiPoint shift,
+             npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // rotates oDeviceSrc by `angle` and translated by `shift`, reults in
+  // `oDeviceDSt`.
 
-    NPP_CHECK_NPP(nppiRotate_8u_C4R(
-        oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(), imageROI(oDeviceSrc),
-        oDeviceDst.data(), oDeviceDst.pitch(), imageROI(oDeviceDst),
-        angle, -shift.x, -shift.y,
-        // angle, 0, 0,
-        NPPI_INTER_LINEAR));
+  NPP_CHECK_NPP(nppiRotate_8u_C4R(
+      oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(),
+      imageROI(oDeviceSrc), oDeviceDst.data(), oDeviceDst.pitch(),
+      imageROI(oDeviceDst), angle, -shift.x, -shift.y,
+      // angle, 0, 0,
+      NPPI_INTER_LINEAR));
 }
 
-void rotate(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Calculate rotated bounding box.
-    double aBoundingBox[2][2] = {0};
-    NPP_CHECK_NPP(nppiGetRotateBound(imageROI(oDeviceSrc), aBoundingBox, angle, 0, 0));
-    NppiRect oRotatedROI = {0,
-                            0,
-                            (int)(aBoundingBox[1][0] - aBoundingBox[0][0]),
-                            (int)(aBoundingBox[1][1] - aBoundingBox[0][1])};
+void rotate(npp::ImageNPP_8u_C4 &oDeviceSrc, double angle,
+            npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Calculate rotated bounding box.
+  double aBoundingBox[2][2] = {0};
+  NPP_CHECK_NPP(
+      nppiGetRotateBound(imageROI(oDeviceSrc), aBoundingBox, angle, 0, 0));
+  NppiRect oRotatedROI = {0, 0, (int)(aBoundingBox[1][0] - aBoundingBox[0][0]),
+                          (int)(aBoundingBox[1][1] - aBoundingBox[0][1])};
 
-    npp::ImageNPP_8u_C4 oRotated(oRotatedROI.width, oRotatedROI.height);
+  npp::ImageNPP_8u_C4 oRotated(oRotatedROI.width, oRotatedROI.height);
 
-    // shift to center rotated image.
-    NppiPoint shift = {(int)aBoundingBox[0][0], (int)aBoundingBox[0][1]};
-    rotateT(oDeviceSrc, angle, shift, oRotated);
+  // shift to center rotated image.
+  NppiPoint shift = {(int)aBoundingBox[0][0], (int)aBoundingBox[0][1]};
+  rotateT(oDeviceSrc, angle, shift, oRotated);
 
-    oDeviceDst.swap(oRotated);
+  oDeviceDst.swap(oRotated);
 }
 
-void crop(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint oCropPoint, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // crops `oDeviceSrc` from `oCropPoint` to size of `oDeviceDst`, result in `oDeviceDst`.
+void crop(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint oCropPoint,
+          npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // crops `oDeviceSrc` from `oCropPoint` to size of `oDeviceDst`, result in
+  // `oDeviceDst`.
 
-    // There doesn't seem to be an easy crop function, so a 0 degree rotation is used instead.
-    rotateT(oDeviceSrc, 0, oCropPoint, oDeviceDst);
+  // There doesn't seem to be an easy crop function, so a 0 degree rotation is
+  // used instead.
+  rotateT(oDeviceSrc, 0, oCropPoint, oDeviceDst);
 }
 
-void move(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint to, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Moves `oDeviceSrc` to the point `to` in `oDeviceDst`.
+void move(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiPoint to,
+          npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Moves `oDeviceSrc` to the point `to` in `oDeviceDst`.
 
-    // A 0 degree rotation feels like the easiest way to do this.
-    NPP_CHECK_NPP(nppiRotate_8u_C4R(
-        oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(), imageROI(oDeviceSrc),
-        oDeviceDst.data(), oDeviceDst.pitch(), imageROI(oDeviceDst),
-        0, to.x, to.y,
-        NPPI_INTER_LINEAR));
+  // A 0 degree rotation feels like the easiest way to do this.
+  NPP_CHECK_NPP(nppiRotate_8u_C4R(
+      oDeviceSrc.data(), imageSizeROI(oDeviceSrc), oDeviceSrc.pitch(),
+      imageROI(oDeviceSrc), oDeviceDst.data(), oDeviceDst.pitch(),
+      imageROI(oDeviceDst), 0, to.x, to.y, NPPI_INTER_LINEAR));
 }
 
-void wrapTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
-    // Repeats the textureSrc over the oDeviceDst image, overwriting whatever is there.
+void wrapTexture(npp::ImageNPP_8u_C4 &textureSrc,
+                 npp::ImageNPP_8u_C4 &oDeviceDSt) {
+  // Repeats the textureSrc over the oDeviceDst image, overwriting whatever is
+  // there.
 
-    NppiSize oTextureSizeROI = imageSizeROI(textureSrc);
-    NppiSize oDeviceSizeROI = imageSizeROI(oDeviceDSt);
+  NppiSize oTextureSizeROI = imageSizeROI(textureSrc);
+  NppiSize oDeviceSizeROI = imageSizeROI(oDeviceDSt);
 
-    NPP_CHECK_NPP(nppiCopyWrapBorder_8u_C4R(
-        textureSrc.data(), textureSrc.pitch(), oTextureSizeROI,
-        oDeviceDSt.data(), oDeviceDSt.pitch(), oDeviceSizeROI,
-        oDeviceSizeROI.height - oTextureSizeROI.height,
-        oDeviceSizeROI.width - oTextureSizeROI.width));
+  NPP_CHECK_NPP(nppiCopyWrapBorder_8u_C4R(
+      textureSrc.data(), textureSrc.pitch(), oTextureSizeROI, oDeviceDSt.data(),
+      oDeviceDSt.pitch(), oDeviceSizeROI,
+      oDeviceSizeROI.height - oTextureSizeROI.height,
+      oDeviceSizeROI.width - oTextureSizeROI.width));
 }
 
-void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &oDeviceDSt)
-{
+void addTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI,
+                   npp::ImageNPP_8u_C4 &textureSrc,
+                   npp::ImageNPP_8u_C4 &oDeviceDSt) {
+  // Intentionally making a texture for the full destination region
+  // and not just the ROI, so adding the same texture in multiple ROI is
+  // consistent.
+  npp::ImageNPP_8u_C4 textureWrap(oDeviceDSt.width(), oDeviceDSt.height());
+  wrapTexture(textureSrc, textureWrap);
 
-    // Intentionally making a texture for the full destination region
-    // and not just the ROI, so adding the same texture in multiple ROI is consistent.
-    npp::ImageNPP_8u_C4 textureWrap(oDeviceDSt.width(), oDeviceDSt.height());
-    wrapTexture(textureSrc, textureWrap);
+  NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
-
-    NPP_CHECK_NPP(nppiAdd_8u_C4RSfs(
-        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(),
-        textureWrap.data(), textureWrap.pitch(),
-        oDeviceDSt.data(oSrcROI.x, oSrcROI.y), oDeviceDSt.pitch(),
-        oROI, 0));
+  NPP_CHECK_NPP(nppiAdd_8u_C4RSfs(
+      oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(),
+      textureWrap.data(), textureWrap.pitch(),
+      oDeviceDSt.data(oSrcROI.x, oSrcROI.y), oDeviceDSt.pitch(), oROI, 0));
 }
 
-void rotateTexture(npp::ImageNPP_8u_C4 &textureSrc, double angle, npp::ImageNPP_8u_C4 &textureDst)
-{
-    // rotate `textureSrc` by `angle` such that textureDst titles correctly.
-    // Doesn't tile exactly correctly, but its close enough for me.
+void rotateTexture(npp::ImageNPP_8u_C4 &textureSrc, double angle,
+                   npp::ImageNPP_8u_C4 &textureDst) {
+  // rotate `textureSrc` by `angle` such that textureDst titles correctly.
+  // Doesn't tile exactly correctly, but its close enough for me.
 
-    int width = textureSrc.width();
-    int height = textureSrc.height();
+  int width = textureSrc.width();
+  int height = textureSrc.height();
 
-    // Create tiled texture to crop the rotated version out of.
-    npp::ImageNPP_8u_C4 textureWrap(width * 2, height * 2);
-    wrapTexture(textureSrc, textureWrap);
+  // Create tiled texture to crop the rotated version out of.
+  npp::ImageNPP_8u_C4 textureWrap(width * 2, height * 2);
+  wrapTexture(textureSrc, textureWrap);
 
-    rotate(textureWrap, angle, textureWrap);
+  rotate(textureWrap, angle, textureWrap);
 
-    NppiPoint oCropPoint = {width, height};
-    npp::ImageNPP_8u_C4 oResult(width, height);
-    crop(textureWrap, oCropPoint, oResult);
+  NppiPoint oCropPoint = {width, height};
+  npp::ImageNPP_8u_C4 oResult(width, height);
+  crop(textureWrap, oCropPoint, oResult);
 
-    textureDst.swap(oResult);
+  textureDst.swap(oResult);
 }
 
-void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient)
-{
-    // Creates a basic linear gradient from white to red from the top to bottom of oDeviceGradient.
+void makeGradient(npp::ImageNPP_8u_C4 &oDeviceGradient) {
+  // Creates a basic linear gradient from white to red from the top to bottom of
+  // oDeviceGradient.
 
-    // Initial low resolution gradient.
-    // Needs to be at least 2 across or resize gives a ROI error.
-    npp::ImageNPP_8u_C4 oHostGradient(2, 4);
+  // Initial low resolution gradient.
+  // Needs to be at least 2 across or resize gives a ROI error.
+  npp::ImageNPP_8u_C4 oHostGradient(2, 4);
 
-    NppiSize oROI = imageSizeROI(oHostGradient);
-    NppiRect oRectROI = imageROI(oHostGradient);
+  NppiSize oROI = imageSizeROI(oHostGradient);
+  NppiRect oRectROI = imageROI(oHostGradient);
 
-    Npp8u white[] = {255, 255, 255, 255};
-    Npp8u lightred[] = {191, 191, 255, 255};
-    Npp8u darkred[] = {63, 63, 255, 255};
-    Npp8u red[] = {0, 0, 255, 255};
+  Npp8u white[] = {255, 255, 255, 255};
+  Npp8u lightred[] = {191, 191, 255, 255};
+  Npp8u darkred[] = {63, 63, 255, 255};
+  Npp8u red[] = {0, 0, 255, 255};
 
-    // Set image to red
-    NPP_CHECK_NPP(nppiSet_8u_C4R(
-        red,
-        oHostGradient.data(), oHostGradient.pitch(),
-        oROI));
+  // Set image to red
+  NPP_CHECK_NPP(
+      nppiSet_8u_C4R(red, oHostGradient.data(), oHostGradient.pitch(), oROI));
 
-    // Set everything above the bottom to dark red
-    NppiSize otopROI = {oROI.width, 3};
-    NPP_CHECK_NPP(nppiSet_8u_C4R(
-        darkred,
-        oHostGradient.data(), oHostGradient.pitch(),
-        otopROI));
+  // Set everything above the bottom to dark red
+  NppiSize otopROI = {oROI.width, 3};
+  NPP_CHECK_NPP(nppiSet_8u_C4R(darkred, oHostGradient.data(),
+                               oHostGradient.pitch(), otopROI));
 
-    // Set everything above the middle to light red
-    otopROI = {oROI.width, 2};
-    NPP_CHECK_NPP(nppiSet_8u_C4R(
-        lightred,
-        oHostGradient.data(), oHostGradient.pitch(),
-        otopROI));
+  // Set everything above the middle to light red
+  otopROI = {oROI.width, 2};
+  NPP_CHECK_NPP(nppiSet_8u_C4R(lightred, oHostGradient.data(),
+                               oHostGradient.pitch(), otopROI));
 
-    // Make top edge white
-    otopROI = {oROI.width, 1};
-    NPP_CHECK_NPP(nppiSet_8u_C4R(
-        white,
-        oHostGradient.data(), oHostGradient.pitch(),
-        otopROI));
+  // Make top edge white
+  otopROI = {oROI.width, 1};
+  NPP_CHECK_NPP(nppiSet_8u_C4R(white, oHostGradient.data(),
+                               oHostGradient.pitch(), otopROI));
 
-    NppiSize oDeviceSizeROI = imageSizeROI(oDeviceGradient);
-    NppiRect oDeviceRectROI = imageROI(oDeviceGradient);
+  NppiSize oDeviceSizeROI = imageSizeROI(oDeviceGradient);
+  NppiRect oDeviceRectROI = imageROI(oDeviceGradient);
 
-    // Use resize linear interpolation to make a smooth gradient in oDeviceGradient.
-    NPP_CHECK_NPP(nppiResize_8u_C4R(
-        oHostGradient.data(), oHostGradient.pitch(), oROI, oRectROI,
-        oDeviceGradient.data(), oDeviceGradient.pitch(), oDeviceSizeROI, oDeviceRectROI,
-        NPPI_INTER_LINEAR));
+  // Use resize linear interpolation to make a smooth gradient in
+  // oDeviceGradient.
+  NPP_CHECK_NPP(nppiResize_8u_C4R(oHostGradient.data(), oHostGradient.pitch(),
+                                  oROI, oRectROI, oDeviceGradient.data(),
+                                  oDeviceGradient.pitch(), oDeviceSizeROI,
+                                  oDeviceRectROI, NPPI_INTER_LINEAR));
 }
 
-const Npp8u *copyPallet(const Npp8u *pallet, int numElements)
-{
-    // Copy channel pallet array to device.
-    size_t size = numElements * sizeof(Npp8u);
-    Npp8u *d_pallet = NULL;
-    NPP_CHECK_CUDA(cudaMalloc(&d_pallet, size));
-    NPP_CHECK_CUDA(cudaMemcpy(d_pallet, pallet, size, cudaMemcpyHostToDevice));
-    return d_pallet;
+const Npp8u *copyPallet(const Npp8u *pallet, int numElements) {
+  // Copy channel pallet array to device.
+  size_t size = numElements * sizeof(Npp8u);
+  Npp8u *d_pallet = NULL;
+  NPP_CHECK_CUDA(cudaMalloc(&d_pallet, size));
+  NPP_CHECK_CUDA(cudaMemcpy(d_pallet, pallet, size, cudaMemcpyHostToDevice));
+  return d_pallet;
 }
 
-void downSampleA(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], Npp8u bitDepth, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Downsample `oDeviceSrc` using `pTables` in rgb channels to `bitDepth`, alpha is not downsampled.
-    // pTables is a list of 3 host pointers for three channel pallets.
-    // Channel order is blue, green, red.
-    // Each channel must have `2^bitDepth` elements. TODO: add assert
-    // BitDepth must be between (0,8] TODO: add assert
+void downSampleA(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3],
+                 Npp8u bitDepth, npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Downsample `oDeviceSrc` using `pTables` in rgb channels to `bitDepth`,
+  // alpha is not downsampled. pTables is a list of 3 host pointers for three
+  // channel pallets. Channel order is blue, green, red. Each channel must have
+  // `2^bitDepth` elements. TODO: add assert BitDepth must be between (0,8]
+  // TODO: add assert
 
-    int palletElements = pow(2, bitDepth);
+  int palletElements = pow(2, bitDepth);
 
-    // copy pallet to device.
-    const Npp8u *
-        pallet[3] = {
-            copyPallet(pTables[0], palletElements),
-            copyPallet(pTables[1], palletElements),
-            copyPallet(pTables[2], palletElements)};
+  // copy pallet to device.
+  const Npp8u *pallet[3] = {copyPallet(pTables[0], palletElements),
+                            copyPallet(pTables[1], palletElements),
+                            copyPallet(pTables[2], palletElements)};
 
-    Npp8u shift = 8 - bitDepth;
-    // Downsample to the 3 most significant bits.
-    const Npp32u aConstants[4] = {shift, shift, shift, 0};
-    NPP_CHECK_NPP(nppiRShiftC_8u_C4R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(), aConstants,
-        oDeviceDst.data(), oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
+  Npp8u shift = 8 - bitDepth;
+  // Downsample to the 3 most significant bits.
+  const Npp32u aConstants[4] = {shift, shift, shift, 0};
+  NPP_CHECK_NPP(nppiRShiftC_8u_C4R(
+      oDeviceSrc.data(), oDeviceSrc.pitch(), aConstants, oDeviceDst.data(),
+      oDeviceDst.pitch(), imageSizeROI(oDeviceSrc)));
 
-    // Recolor to pallet.
-    NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
-        oDeviceDst.data(), oDeviceDst.pitch(),
-        oDeviceDst.data(), oDeviceDst.pitch(),
-        imageSizeROI(oDeviceSrc),
-        pallet, bitDepth));
+  // Recolor to pallet.
+  NPP_CHECK_NPP(nppiLUTPalette_8u_AC4R(
+      oDeviceDst.data(), oDeviceDst.pitch(), oDeviceDst.data(),
+      oDeviceDst.pitch(), imageSizeROI(oDeviceSrc), pallet, bitDepth));
 }
 
-void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
-    // pTables is a list of 3 host pointers for three channel pallets.
-    // Channel order is blue, green, red.
-    // Each channel must have 8 elements.
+void downSampleA3(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3],
+                  npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha
+  // is not downsampled. pTables is a list of 3 host pointers for three channel
+  // pallets. Channel order is blue, green, red. Each channel must have 8
+  // elements.
 
-    downSampleA(oDeviceSrc, pTables, 3, oDeviceDst);
+  downSampleA(oDeviceSrc, pTables, 3, oDeviceDst);
 }
 
-void downSampleA2(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3], npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha is not downsampled.
-    // pTables is a list of 3 host pointers for three channel pallets.
-    // Channel order is blue, green, red.
-    // Each channel must have 4 elements.
+void downSampleA2(npp::ImageNPP_8u_C4 &oDeviceSrc, const Npp8u *pTables[3],
+                  npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Downsample `oDeviceSrc` using `pTables` to 8 values in rgb channels, alpha
+  // is not downsampled. pTables is a list of 3 host pointers for three channel
+  // pallets. Channel order is blue, green, red. Each channel must have 4
+  // elements.
 
-    downSampleA(oDeviceSrc, pTables, 2, oDeviceDst);
+  downSampleA(oDeviceSrc, pTables, 2, oDeviceDst);
 }
 
-float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc)
-{
-    // Computes an image contour `oDeviceSrc` and returns what percent count as a contour.
-    // Contours are calculated with nppiFilterCannyBorder_8u_C1R.
+float contourCount(npp::ImageNPP_8u_C4 &oDeviceSrc) {
+  // Computes an image contour `oDeviceSrc` and returns what percent count as a
+  // contour. Contours are calculated with nppiFilterCannyBorder_8u_C1R.
 
-    NppiSize imageSize = imageSizeROI(oDeviceSrc);
+  NppiSize imageSize = imageSizeROI(oDeviceSrc);
 
-    // Convert to grayscale for contour detection
-    npp::ImageNPP_8u_C1 oDeviceGray(imageSize.width, imageSize.height);
-    NPP_CHECK_NPP(nppiRGBToGray_8u_AC4C1R(
-        oDeviceSrc.data(), oDeviceSrc.pitch(),
-        oDeviceGray.data(), oDeviceGray.pitch(),
-        imageSize));
+  // Convert to grayscale for contour detection
+  npp::ImageNPP_8u_C1 oDeviceGray(imageSize.width, imageSize.height);
+  NPP_CHECK_NPP(nppiRGBToGray_8u_AC4C1R(oDeviceSrc.data(), oDeviceSrc.pitch(),
+                                        oDeviceGray.data(), oDeviceGray.pitch(),
+                                        imageSize));
 
-    // Make buffer for contour calculation
-    int nContourBufferSize = 0;
-    Npp8u *pContourBufferNPP = 0;
-    NPP_CHECK_NPP(nppiFilterCannyBorderGetBufferSize(imageSize, &nContourBufferSize));
-    cudaMalloc((void **)&pContourBufferNPP, nContourBufferSize);
+  // Make buffer for contour calculation
+  int nContourBufferSize = 0;
+  Npp8u *pContourBufferNPP = 0;
+  NPP_CHECK_NPP(
+      nppiFilterCannyBorderGetBufferSize(imageSize, &nContourBufferSize));
+  cudaMalloc((void **)&pContourBufferNPP, nContourBufferSize);
 
-    Npp16s nLowThreshold = 200;
-    Npp16s nHighThreshold = 500;
-    npp::ImageNPP_8u_C1 oDeviceContour(imageSize.width, imageSize.height);
-    NppiPoint oOrigin = {0, 0};
-    NPP_CHECK_NPP(nppiFilterCannyBorder_8u_C1R(
-        oDeviceGray.data(), oDeviceGray.pitch(), imageSize, oOrigin,
-        oDeviceContour.data(), oDeviceContour.pitch(), imageSize,
-        NPP_FILTER_SOBEL, NPP_MASK_SIZE_5_X_5,
-        nLowThreshold, nHighThreshold,
-        nppiNormL2, NPP_BORDER_REPLICATE,
-        pContourBufferNPP));
+  Npp16s nLowThreshold = 200;
+  Npp16s nHighThreshold = 500;
+  npp::ImageNPP_8u_C1 oDeviceContour(imageSize.width, imageSize.height);
+  NppiPoint oOrigin = {0, 0};
+  NPP_CHECK_NPP(nppiFilterCannyBorder_8u_C1R(
+      oDeviceGray.data(), oDeviceGray.pitch(), imageSize, oOrigin,
+      oDeviceContour.data(), oDeviceContour.pitch(), imageSize,
+      NPP_FILTER_SOBEL, NPP_MASK_SIZE_5_X_5, nLowThreshold, nHighThreshold,
+      nppiNormL2, NPP_BORDER_REPLICATE, pContourBufferNPP));
 
-    // Debug: copy contour to color image to save.
-    // npp::ImageNPP_8u_C4 oDeviceDst(imageSize.width, imageSize.height);
-    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
-    //     oDeviceContour.data(), oDeviceContour.pitch(),
-    //     oDeviceDst.data(), oDeviceDst.pitch(),
-    //     imageSize));
-    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
-    //     oDeviceContour.data(), oDeviceContour.pitch(),
-    //     oDeviceDst.data() + 1, oDeviceDst.pitch(),
-    //     imageSize));
-    // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
-    //     oDeviceContour.data(), oDeviceContour.pitch(),
-    //     oDeviceDst.data() + 2, oDeviceDst.pitch(),
-    //     imageSize));
+  // Debug: copy contour to color image to save.
+  // npp::ImageNPP_8u_C4 oDeviceDst(imageSize.width, imageSize.height);
+  // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+  //     oDeviceContour.data(), oDeviceContour.pitch(),
+  //     oDeviceDst.data(), oDeviceDst.pitch(),
+  //     imageSize));
+  // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+  //     oDeviceContour.data(), oDeviceContour.pitch(),
+  //     oDeviceDst.data() + 1, oDeviceDst.pitch(),
+  //     imageSize));
+  // NPP_CHECK_NPP(nppiCopy_8u_C1C4R(
+  //     oDeviceContour.data(), oDeviceContour.pitch(),
+  //     oDeviceDst.data() + 2, oDeviceDst.pitch(),
+  //     imageSize));
 
-    // setup buffer for sum calculation.
-    int sumBufferSize;
-    Npp8u *sumDeviceBuffer;
-    NPP_CHECK_NPP(nppiSumGetBufferHostSize_8u_C1R(imageSize, &sumBufferSize));
-    cudaMalloc((void **)(&sumDeviceBuffer), sumBufferSize);
+  // setup buffer for sum calculation.
+  int sumBufferSize;
+  Npp8u *sumDeviceBuffer;
+  NPP_CHECK_NPP(nppiSumGetBufferHostSize_8u_C1R(imageSize, &sumBufferSize));
+  cudaMalloc((void **)(&sumDeviceBuffer), sumBufferSize);
 
-    // setup pointer for sum result.
-    Npp64f *pSum;
-    cudaMalloc((void **)(&pSum), sizeof(Npp64f));
-    NPP_CHECK_NPP(nppiSum_8u_C1R(oDeviceContour.data(), oDeviceContour.pitch(), imageSizeROI(oDeviceContour), sumDeviceBuffer, pSum));
+  // setup pointer for sum result.
+  Npp64f *pSum;
+  cudaMalloc((void **)(&pSum), sizeof(Npp64f));
+  NPP_CHECK_NPP(nppiSum_8u_C1R(oDeviceContour.data(), oDeviceContour.pitch(),
+                               imageSizeROI(oDeviceContour), sumDeviceBuffer,
+                               pSum));
 
-    // copy result to host.
-    Npp64f nSumHost;
-    cudaMemcpy(&nSumHost, pSum, sizeof(Npp64f), cudaMemcpyDeviceToHost);
+  // copy result to host.
+  Npp64f nSumHost;
+  cudaMemcpy(&nSumHost, pSum, sizeof(Npp64f), cudaMemcpyDeviceToHost);
 
-    return (float)(nSumHost / 255.0) / (float)(imageSize.width * imageSize.height) * 100.0;
+  return (float)(nSumHost / 255.0) /
+         (float)(imageSize.width * imageSize.height) * 100.0;
 }
 
-void blurROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    NppiPoint origin = {0, 0};
-    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
+void blurROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI,
+             npp::ImageNPP_8u_C4 &oDeviceDst) {
+  NppiPoint origin = {0, 0};
+  NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    NPP_CHECK_NPP(nppiFilterGaussBorder_8u_C4R(
-        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
-        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
-        NPP_MASK_SIZE_5_X_5, NPP_BORDER_REPLICATE));
+  NPP_CHECK_NPP(nppiFilterGaussBorder_8u_C4R(
+      oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+      oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
+      NPP_MASK_SIZE_5_X_5, NPP_BORDER_REPLICATE));
 }
 
-void sharpenROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    NppiPoint origin = {0, 0};
-    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
+void sharpenROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI,
+                npp::ImageNPP_8u_C4 &oDeviceDst) {
+  NppiPoint origin = {0, 0};
+  NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    NPP_CHECK_NPP(nppiFilterSharpenBorder_8u_C4R(
-        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
-        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
-        NPP_BORDER_REPLICATE));
+  NPP_CHECK_NPP(nppiFilterSharpenBorder_8u_C4R(
+      oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+      oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
+      NPP_BORDER_REPLICATE));
 }
 
-void dialateROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    NppiPoint origin = {0, 0};
-    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
+void dialateROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI,
+                npp::ImageNPP_8u_C4 &oDeviceDst) {
+  NppiPoint origin = {0, 0};
+  NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    NPP_CHECK_NPP(nppiDilate3x3Border_8u_C4R(
-        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
-        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
-        NPP_BORDER_REPLICATE));
+  NPP_CHECK_NPP(nppiDilate3x3Border_8u_C4R(
+      oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+      oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
+      NPP_BORDER_REPLICATE));
 }
 
-void erodeROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    NppiPoint origin = {0, 0};
-    NppiSize oROI = {oSrcROI.width, oSrcROI.height};
+void erodeROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oSrcROI,
+              npp::ImageNPP_8u_C4 &oDeviceDst) {
+  NppiPoint origin = {0, 0};
+  NppiSize oROI = {oSrcROI.width, oSrcROI.height};
 
-    NPP_CHECK_NPP(nppiErode3x3Border_8u_C4R(
-        oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
-        oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
-        NPP_BORDER_REPLICATE));
+  NPP_CHECK_NPP(nppiErode3x3Border_8u_C4R(
+      oDeviceSrc.data(oSrcROI.x, oSrcROI.y), oDeviceSrc.pitch(), oROI, origin,
+      oDeviceDst.data(oSrcROI.x, oSrcROI.y), oDeviceDst.pitch(), oROI,
+      NPP_BORDER_REPLICATE));
 }
 
-void copyTexture(npp::ImageNPP_8u_C4 &textureSrc, npp::ImageNPP_8u_C4 &textureDst) {
-    npp::ImageNPP_8u_C4 oTextureCopy(textureSrc.width(), textureSrc.height());
-    textureSrc.copyTo(oTextureCopy.data(), oTextureCopy.pitch());
-    textureDst.swap(oTextureCopy);
+void copyTexture(npp::ImageNPP_8u_C4 &textureSrc,
+                 npp::ImageNPP_8u_C4 &textureDst) {
+  npp::ImageNPP_8u_C4 oTextureCopy(textureSrc.width(), textureSrc.height());
+  textureSrc.copyTo(oTextureCopy.data(), oTextureCopy.pitch());
+  textureDst.swap(oTextureCopy);
 }
 
-std::string randomTexture(npp::ImageNPP_8u_C4 &texture)
-{
-    // Pick a texture at random.
-    // returned string is name of picked texture
+std::string randomTexture(npp::ImageNPP_8u_C4 &texture) {
+  // Pick a texture at random.
+  // returned string is name of picked texture
 
-    switch (rand() % numTextures)
-    {
+  switch (rand() % numTextures) {
     case 0:
-        copyTexture(o45DegreeTexture, texture);
-        return "45-degree-fabric";
-        break;
+      copyTexture(o45DegreeTexture, texture);
+      return "45-degree-fabric";
+      break;
     case 1:
-        copyTexture(oArgyleTexture, texture);
-        return "argyle";
-        break;
+      copyTexture(oArgyleTexture, texture);
+      return "argyle";
+      break;
     case 2:
-        copyTexture(oOrchidTexture, texture);
-        return "black-orchid";
-        break;
+      copyTexture(oOrchidTexture, texture);
+      return "black-orchid";
+      break;
     case 3:
-        copyTexture(oAlumTexture, texture);
-        return "brushed-alum";
-        break;
+      copyTexture(oAlumTexture, texture);
+      return "brushed-alum";
+      break;
     case 4:
-        copyTexture(oCardboardTexture, texture);
-        return "cardboard-flat";
-        break;
+      copyTexture(oCardboardTexture, texture);
+      return "cardboard-flat";
+      break;
     case 5:
-        copyTexture(oPaperTexture, texture);
-        return "clean-gray-paper";
-        break;
+      copyTexture(oPaperTexture, texture);
+      return "clean-gray-paper";
+      break;
     case 6:
-        copyTexture(oRufflesTexture, texture);
-        return "crisp-paper-ruffles";
-        break;
+      copyTexture(oRufflesTexture, texture);
+      return "crisp-paper-ruffles";
+      break;
     case 7:
-        copyTexture(oScratchesTexture, texture);
-        return "cross-scratches";
-        break;
+      copyTexture(oScratchesTexture, texture);
+      return "cross-scratches";
+      break;
     case 8:
-        copyTexture(oMapTexture, texture);
-        return "old-map";
-        break;
+      copyTexture(oMapTexture, texture);
+      return "old-map";
+      break;
     case 9:
-        copyTexture(oMoonTexture, texture);
-        return "old-moon";
-        break;
+      copyTexture(oMoonTexture, texture);
+      return "old-moon";
+      break;
     case 10:
-        copyTexture(oTreeTexture, texture);
-        return "shley-tree-1";
-        break;
+      copyTexture(oTreeTexture, texture);
+      return "shley-tree-1";
+      break;
     case 11:
-        copyTexture(oCircleTexture, texture);
-        return "soft-circle-scales";
-        break;
-    }
-    return "no texture";
+      copyTexture(oCircleTexture, texture);
+      return "soft-circle-scales";
+      break;
+  }
+  return "no texture";
 }
 
-std::string addRandomTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst) {
-    // Adds one random texture to `oDeviceSrc` in the `oROI`, output in `oDeviceDst`.
+std::string addRandomTextureROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI,
+                                npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Adds one random texture to `oDeviceSrc` in the `oROI`, output in
+  // `oDeviceDst`.
 
-    npp::ImageNPP_8u_C4 oTexture;
-    std::string sTexture = randomTexture(oTexture);
+  npp::ImageNPP_8u_C4 oTexture;
+  std::string sTexture = randomTexture(oTexture);
 
-    addTextureROI(oDeviceSrc, oROI, oTexture, oDeviceDst);
-    return "Texture: " + sTexture;
+  addTextureROI(oDeviceSrc, oROI, oTexture, oDeviceDst);
+  return "Texture: " + sTexture;
 }
 
-std::string addRandomTransformationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst) {
-    // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to `oDeviceDst`.
-    // Mutations include: blur, sharpen, dialate, and erode.
-    // The returned string describes the mutation done.
-    switch (rand() % 4)
-    {
+std::string addRandomTransformationROI(npp::ImageNPP_8u_C4 &oDeviceSrc,
+                                       NppiRect oROI,
+                                       npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to
+  // `oDeviceDst`. Mutations include: blur, sharpen, dialate, and erode. The
+  // returned string describes the mutation done.
+  switch (rand() % 4) {
     case 0:
-        blurROI(oDeviceSrc, oROI, oDeviceDst);
-        return "Blur";
-        break;
+      blurROI(oDeviceSrc, oROI, oDeviceDst);
+      return "Blur";
+      break;
     case 1:
-        sharpenROI(oDeviceSrc, oROI, oDeviceDst);
-        return "Sharpen";
-        break;
+      sharpenROI(oDeviceSrc, oROI, oDeviceDst);
+      return "Sharpen";
+      break;
     case 2:
-        dialateROI(oDeviceSrc, oROI, oDeviceDst);
-        return "Dialate";
-        break;
+      dialateROI(oDeviceSrc, oROI, oDeviceDst);
+      return "Dialate";
+      break;
     case 3:
-        erodeROI(oDeviceSrc, oROI, oDeviceDst);
-        return "Erode";
-        break;
+      erodeROI(oDeviceSrc, oROI, oDeviceDst);
+      return "Erode";
+      break;
+  }
+  return "no mutation";
+}
+
+std::string doRandomMutationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI,
+                                npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to
+  // `oDeviceDst`. Mutations include: adding a texture, blur, sharpen, dialate,
+  // and erode. The returned string describes the mutation done.
+
+  switch (rand() % 3) {
+    case 0:
+      // case 1:
+      return addRandomTextureROI(oDeviceSrc, oROI, oDeviceDst);
+      break;
+    case 1:
+      return addRandomTransformationROI(oDeviceSrc, oROI, oDeviceDst);
+      break;
+  }
+
+  return "no mutation";
+}
+
+std::tuple<std::string, int> mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc,
+                                         npp::ImageNPP_8u_C4 &oDeviceDst) {
+  // Does 13 random mutations to `oDeviceSrc` with the output in `oDeviceDst`.
+  // The last 2 are over the whole image.
+  // The first mutation is always a texture and the last two are always
+  // mutations. There are also always textures added to the 3 halfs, top,
+  // middle, bottom. returned value is a string of all the mutations and seed
+  // for this set.
+
+  std::stringstream mutations;
+  std::string lastMutation;
+
+  int imageSeed = rand();
+  srand(imageSeed);
+  // srand(1);
+
+  NppiRect oImageROI = imageROI(oDeviceDst);
+
+  // String for proof of work images.
+  std::string sIntermediateImagesTemplate =
+      "data/pof/" + std::to_string(imageSeed) + "_";
+  int stepNum = 1;
+
+  mutations << "Add to whole image ";
+  lastMutation = addRandomTextureROI(oDeviceSrc, oImageROI, oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Top half ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Top half ";
+  lastMutation =
+      addRandomTextureROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Bottom half ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Bottom half ";
+  lastMutation =
+      addRandomTextureROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Middle half ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to Middle half ";
+  lastMutation =
+      addRandomTextureROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to top quarter ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_TQ(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to middle top quarter ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_MTQ(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to middle bottom quarter ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_MBQ(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to bottom quarter ";
+  lastMutation =
+      doRandomMutationROI(oDeviceDst, imageROI_BQ(oDeviceDst), oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to whole image ";
+  lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+  stepNum += 1;
+
+  mutations << "Add to whole image ";
+  lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
+  mutations << lastMutation << std::endl;
+
+  // Save for proof of work
+  npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png",
+                 oDeviceDst);
+
+  // Save steps
+  std::ofstream stepFile("data/pof/" + std::to_string(imageSeed) + ".txt");
+  stepFile << mutations.str();
+  stepFile.close();
+
+  return std::make_tuple(mutations.str(), imageSeed);
+}
+
+void loadTextures() {
+  loadImage("data/textures/45-degree-fabric-light.png", o45DegreeTexture);
+  loadImage("data/textures/argyle.png", oArgyleTexture);
+  loadImage("data/textures/black-orchid.png", oOrchidTexture);
+  loadImage("data/textures/brushed-alum.png", oAlumTexture);
+  loadImage("data/textures/cardboard-flat.png", oCardboardTexture);
+  loadImage("data/textures/clean-gray-paper.png", oPaperTexture);
+  loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
+  loadImage("data/textures/cross-scratches.png", oScratchesTexture);
+  loadImage("data/textures/old-map.png", oMapTexture);
+  loadImage("data/textures/old-moon.png", oMoonTexture);
+  loadImage("data/textures/shley-tree-1.png", oTreeTexture);
+  loadImage("data/textures/soft-circle-scales.png", oCircleTexture);
+
+  rotateTexture(oRufflesTexture, 45, oRufflesTexture);
+
+  numTextures = 12;
+}
+
+int main(int argc, char *argv[]) {
+  printf("%s Starting...\n\n", argv[0]);
+  loadTextures();
+
+  // Base gradient all operations will be performed on.
+  npp::ImageNPP_8u_C4 oDeviceGradient(500, 500);
+  makeGradient(oDeviceGradient);
+
+  // Downsampling pallet
+  // approximate linear gradient between 0 and 255 split into 10 parts.
+  // 0, 127, 255 excluded.
+  Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
+
+  // approximate linear gradient between 0 and 255 split into 5 parts.
+  // 0, 127, 255 excluded.
+  Npp8u linear5[4] = {24, 102, 153, 230};
+
+  Npp8u constant[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+  Npp8u zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
+
+  const Npp8u *pallet3[3] = {linear10, linear10, halfs};
+  const Npp8u *pallet2[3] = {linear5, linear5, halfs};
+
+  npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(),
+                                 oDeviceGradient.height());
+  std::string sResultFilename;
+
+  downSampleA3(oDeviceGradient, pallet3, oDeviceGradient);
+  // downSampleA2(oDeviceGradient, pallet2, oDeviceGradient);
+  float basecontourCount = contourCount(oDeviceGradient);
+
+  std::string mutations;
+  int seed;
+  for (int i = 0; i < 500; i++) {
+    // Copy of gradient
+    oDeviceGradient.copyTo(oDeviceDst.data(), oDeviceDst.pitch());
+
+    tie(mutations, seed) = mutateImage(oDeviceDst, oDeviceDst);
+    // std::cout << mutations << std::endl;
+
+    downSampleA3(oDeviceDst, pallet3, oDeviceDst);
+    // downSampleA2(oDeviceDst, pallet2, oDeviceDst);
+
+    float cc = contourCount(oDeviceDst);
+
+    npp::saveImage("data/pof/" + std::to_string(seed) + ".png", oDeviceDst);
+
+    if (cc > basecontourCount * 1.25 && cc < basecontourCount * 2) {
+      sResultFilename = "data/results/" + std::to_string(seed) + ".png";
+      npp::saveImage(sResultFilename, oDeviceDst);
+      std::cout << cc << " Saved image: " << sResultFilename << std::endl;
     }
-    return "no mutation";
-}
+  }
 
-std::string doRandomMutationROI(npp::ImageNPP_8u_C4 &oDeviceSrc, NppiRect oROI, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Does 1 random mutation to `oDeviceSrc` in the `oROI` and outputs to `oDeviceDst`.
-    // Mutations include: adding a texture, blur, sharpen, dialate, and erode.
-    // The returned string describes the mutation done.
+  std::cout << "Base Countour Count " << basecontourCount << std::endl;
 
-    switch (rand() % 3)
-    {
-        case 0:
-        // case 1:
-            return addRandomTextureROI(oDeviceSrc, oROI, oDeviceDst);
-            break;
-        case 1:
-            return addRandomTransformationROI(oDeviceSrc, oROI, oDeviceDst);
-            break;
-        }
-
-    return "no mutation";
-}
-
-std::tuple<std::string, int>
-mutateImage(npp::ImageNPP_8u_C4 &oDeviceSrc, npp::ImageNPP_8u_C4 &oDeviceDst)
-{
-    // Does 13 random mutations to `oDeviceSrc` with the output in `oDeviceDst`.
-    // The last 2 are over the whole image.
-    // The first mutation is always a texture and the last two are always mutations.
-    // There are also always textures added to the 3 halfs, top, middle, bottom.
-    // returned value is a string of all the mutations and seed for this set.
-
-    std::stringstream mutations;
-    std::string lastMutation;
-
-    int imageSeed = rand();
-    srand(imageSeed);
-    // srand(1);
-
-    NppiRect oImageROI = imageROI(oDeviceDst);
-
-    // String for proof of work images.
-    std::string sIntermediateImagesTemplate =
-        "data/pof/" + std::to_string(imageSeed) + "_";
-    int stepNum = 1;
-
-    mutations << "Add to whole image ";
-    lastMutation = addRandomTextureROI(oDeviceSrc, oImageROI, oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Top half ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Top half ";
-    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_TH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Bottom half ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Bottom half ";
-    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_BH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Middle half ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to Middle half ";
-    lastMutation = addRandomTextureROI(oDeviceDst, imageROI_MH(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to top quarter ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_TQ(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to middle top quarter ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MTQ(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to middle bottom quarter ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_MBQ(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to bottom quarter ";
-    lastMutation = doRandomMutationROI(oDeviceDst, imageROI_BQ(oDeviceDst), oDeviceDst);
-    mutations << lastMutation << std::endl;
-    
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to whole image ";
-    lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    stepNum += 1;
-
-    mutations << "Add to whole image ";
-    lastMutation = addRandomTransformationROI(oDeviceDst, oImageROI, oDeviceDst);
-    mutations << lastMutation << std::endl;
-
-    // Save for proof of work
-    npp::saveImage(sIntermediateImagesTemplate + std::to_string(stepNum) + ".png", oDeviceDst);
-    
-    // Save steps
-    std::ofstream stepFile("data/pof/" + std::to_string(imageSeed) + ".txt");
-    stepFile << mutations.str();
-    stepFile.close();
-
-    return std::make_tuple(mutations.str(), imageSeed);
-}
-
-void loadTextures()
-{
-    loadImage("data/textures/45-degree-fabric-light.png", o45DegreeTexture);
-    loadImage("data/textures/argyle.png", oArgyleTexture);
-    loadImage("data/textures/black-orchid.png", oOrchidTexture);
-    loadImage("data/textures/brushed-alum.png", oAlumTexture);
-    loadImage("data/textures/cardboard-flat.png", oCardboardTexture);
-    loadImage("data/textures/clean-gray-paper.png", oPaperTexture);
-    loadImage("data/textures/crisp-paper-ruffles.png", oRufflesTexture);
-    loadImage("data/textures/cross-scratches.png", oScratchesTexture);
-    loadImage("data/textures/old-map.png", oMapTexture);
-    loadImage("data/textures/old-moon.png", oMoonTexture);
-    loadImage("data/textures/shley-tree-1.png", oTreeTexture);
-    loadImage("data/textures/soft-circle-scales.png", oCircleTexture);
-
-    rotateTexture(oRufflesTexture, 45, oRufflesTexture);
-
-    numTextures = 12;
-}
-
-int main(int argc, char *argv[])
-{
-    printf("%s Starting...\n\n", argv[0]);
-    loadTextures();
-
-    // Base gradient all operations will be performed on.
-    npp::ImageNPP_8u_C4 oDeviceGradient(500, 500);
-    makeGradient(oDeviceGradient);
-
-    // Downsampling pallet
-    // approximate linear gradient between 0 and 255 split into 10 parts.
-    // 0, 127, 255 excluded.
-    Npp8u linear10[8] = {24, 51, 76, 102, 153, 179, 204, 230};
-
-    // approximate linear gradient between 0 and 255 split into 5 parts.
-    // 0, 127, 255 excluded.
-    Npp8u linear5[4] = {24, 102, 153, 230};
-
-    Npp8u constant[8] = {255, 255, 255, 255, 255, 255, 255, 255};
-    Npp8u zeros[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    Npp8u halfs[8] = {127, 127, 127, 127, 127, 127, 127, 127};
-
-    const Npp8u *pallet3[3] = {linear10, linear10, halfs};
-    const Npp8u *pallet2[3] = {linear5, linear5, halfs};
-
-    npp::ImageNPP_8u_C4 oDeviceDst(oDeviceGradient.width(), oDeviceGradient.height());
-    std::string sResultFilename;
-
-    downSampleA3(oDeviceGradient, pallet3, oDeviceGradient);
-    // downSampleA2(oDeviceGradient, pallet2, oDeviceGradient);
-    float basecontourCount = contourCount(oDeviceGradient);
-
-    std::string mutations;
-    int seed;
-    for (int i = 0; i < 500; i++)
-    {
-        // Copy of gradient
-        oDeviceGradient.copyTo(oDeviceDst.data(), oDeviceDst.pitch());
-
-        tie(mutations, seed) = mutateImage(oDeviceDst, oDeviceDst);
-        // std::cout << mutations << std::endl;
-
-        downSampleA3(oDeviceDst, pallet3, oDeviceDst);
-        // downSampleA2(oDeviceDst, pallet2, oDeviceDst);
-
-        float cc = contourCount(oDeviceDst);
-
-        npp::saveImage("data/pof/" + std::to_string(seed) + ".png", oDeviceDst);
-
-        if (cc > basecontourCount * 1.25 && cc < basecontourCount*2) {
-            sResultFilename = "data/results/" + std::to_string(seed) + ".png";
-            npp::saveImage(sResultFilename, oDeviceDst);
-            std::cout << cc << " Saved image: " << sResultFilename << std::endl;
-        }
-    }
-
-    std::cout << "Base Countour Count " << basecontourCount << std::endl;
-
-    exit(EXIT_SUCCESS);
+  exit(EXIT_SUCCESS);
 }
