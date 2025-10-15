@@ -479,7 +479,7 @@ std::string randomTexture(npp::ImageNPP_8u_C4 &texture)
     // Pick a texture at random.
     // returned string is name of picked texture
 
-    switch (rand() % 2)
+    switch (rand() % numTextures)
     {
     case 0:
         copyTexture(o45DegreeTexture, texture);
