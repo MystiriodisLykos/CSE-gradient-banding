@@ -35,13 +35,30 @@ This folder holds all binary/executable code.
 
 ```data/```
 This folder holds all example data.
-TODO: the images are all pulled from transparent-backgrounds (link).
+
+```data/textures```
+Textures applied to the gradient before downsampling.
+The images are all pulled from [transparent textures](https://www.transparenttextures.com/).
+
+```data/pof```
+These images are saved while the program is running, as proof of it running across a large set of data.
+The name of each picture is the seed used to create it and the step.
+Images without steps are the final images and the text file is the set of steps run.
+
+```data/results```
+Final images for any image that matches the "wiggly" threshold.
 
 ```lib/```
 Any libraries that are not installed via the Operating System-specific package manager should be placed here, so that it is easier for inclusion/linking.
 
 ```src/```
 The source code.
+
+```include/```
+Additional header files to include.
+
+```include/util.h```
+Utility functions for dealing with npp types.
 
 ```README.md```
 You are here.
@@ -63,7 +80,7 @@ x86_64
 ## CUDA APIs involved
 
 ## Dependencies needed to build/run
-[NPP](../../README.md#npp) TODO: actual link
+NPP
 
 ## Prerequisites
 
@@ -103,22 +120,12 @@ After building the project, you can run the program using the following command:
 ```bash
 make run
 ```
-
-If you wish to run the binary directly with custom input/output files, you can use:
-
-TODO: update references
-```bash
-- Copy code
-./bin/imageRotationNPP
-```
-
 - Cleaning Up
 To clean up the compiled binaries and other generated files, run:
 
 
 ```bash
-- Copy code
 make clean
 ```
 
-This will remove all files in the bin/ directory.
+This will remove all files in the `bin/` directory and any images generated in `data/`.
